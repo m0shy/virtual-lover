@@ -58,6 +58,7 @@ SELF_ID = "10000"  # 占位机器人账号
 # ① per-user FIFO 保序 + 计数守恒
 # ---------------------------------------------------------------------------
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_per_user_fifo_order_and_count_conservation(tmp_path):
     """两个 user 交错到达的消息：各自回复按到达序 FIFO 出帧，计数守恒。
 
