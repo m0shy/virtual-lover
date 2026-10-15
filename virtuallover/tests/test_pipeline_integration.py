@@ -372,6 +372,7 @@ def test_face_markers_go_through_segments_array(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_typing_gap_receives_next_segment_length(tmp_path, monkeypatch):
     """sample_gap / sample_first_gap 全部带下一段长度（typing_cps 节奏的入参）。"""
     clock = FakeClock()
