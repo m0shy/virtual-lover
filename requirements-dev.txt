@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+# Virtual-lover 测试/开发依赖（PERF_SPEC §4-O13 + §7.2：新建本文件，setup .venv 安装）。
+#
+# 门禁入口（O11④ 与 O13 同批）：python -m pytest virtuallover/tests -q -n auto
+# ——「任何非零退出码判败」（xdist 坏路径 exit 5 陷阱在门禁口径内）。
+#
+# 版本锁定策略与 requirements.txt 一致：主版本上界锁定 + 注释记录实测版本。
+# 实测环境：Windows / Python 3.13.9 / pytest 8.4.2 / pytest-xdist 3.8.0
+# （execnet 2.1.2 为 pytest-xdist 传递依赖，随装不单列）。
+#
+# pytest —— 测试框架。≥8.4：namespace 包 conftest 全限定名导入、
+#           filterwarnings 语法等既有测试基建依赖 8.x 行为。
+pytest>=8.4,<9.0
+# pytest-xdist —— 默认门禁并行化（实测 137s 串行 → 23s@-n auto，三跑一致）。
+#               worker 间桥端口隔离依赖 PYTEST_XDIST_WORKER 环境变量
+#               （tests/conftest.py vl_test_port per-worker 派生）。
+pytest-xdist>=3.8,<4.0

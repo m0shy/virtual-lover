@@ -1,0 +1,17 @@
+{
+  "_说明": "长期记忆插件（mnemosyne）推荐配置；需先在面板配好 Embedding 模型，Milvus 由 docker compose 自动启动",
+  "address": "milvus-standalone:19530",
+  "collection_name": "default",
+  "db_name": "default",
+  "milvus_lite_path": "",
+  "num_pairs": 2,
+  "top_k": 2,
+  "use_session_filtering": true,
+  "use_personality_filtering": true,
+  "platform_blacklist": [],
+  "enable_explicit_memory_capture": false,
+  "memory_injection_method": "user_prompt",
+  "memory_injection_position": "prepend",
+  "max_prompt_chars_for_embedding": 4000,
+  "use_lightweight_memory_graph": true
+}

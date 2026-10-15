@@ -1,0 +1,43 @@
+# ============ 私人数据 —— 绝不提交 ============
+# 聊天记录、人格、API Key、QQ 登录态、记忆向量库全部在这里
+local/
+
+# 备份目录
+backup/
+
+# 环境变量（可能含密钥）
+.env
+.env.*
+!.env.example
+
+# 数据库/模型文件防手滑（排障时拷出来即被忽略）
+*.db
+*.sqlite
+*.sqlite3
+*.ckpt
+*.pth
+
+# ============ 语音引擎本地部署 ============
+# 体积巨大（数 GB），且含个人训练的音色模型，不入库
+# voice-engine/ 为融合改名后的标准目录名（原 GPT-SoVITS-Inference/ 同义），
+# 两条都保留：改名前的旧目录名与新目录名都永不入库
+GPT-SoVITS-*/
+voice-engine/
+
+# ============ 本地大脑模型文件 ============
+# GGUF 权重数 GB 且属个人部署产物，绝不入库（local-brain-*.gguf 等）
+*.gguf
+
+# ============ 工具与临时文件 ============
+__pycache__/
+*.pyc
+.zcode/
+*.log
+tmp/
+Thumbs.db
+.DS_Store
+.pytest_cache/
+
+# 临时工作文件（含上游逆向产物，绝不入库）
+.tmp_*
+nul

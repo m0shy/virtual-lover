@@ -1,0 +1,84 @@
+#!/bin/sh
+# 提交前三道门禁：
+#   1) 密钥扫描（暂存区，含 GBK 中文模式）
+#   2) import 卫生（SPEC §12/§14）：virtuallover/ 禁止出现 astrbot 引用
+#   3) 上游探针句（SPEC §12）：禁现 mnemosyne 总结 prompt 原文等上游特征串
+# 首次克隆后启用（一次性）：git config core.hooksPath .githooks
+# 非 Windows 环境无 PowerShell 时跳过密钥扫描（仅提示），不阻断提交
+
+echo "[pre-commit] 门禁 1/3：密钥自查（扫描暂存区）..."
+if command -v pwsh >/dev/null 2>&1; then
+    PWSH=pwsh
+elif command -v powershell >/dev/null 2>&1; then
+    PWSH=powershell
+else
+    echo "[pre-commit] ! 未找到 PowerShell，跳过密钥扫描（Windows 环境请安装）"
+    PWSH=""
+fi
+if [ -n "$PWSH" ]; then
+    "$PWSH" -NoProfile -ExecutionPolicy Bypass -File scripts/check-secrets.ps1
+    if [ $? -ne 0 ]; then
+        echo "[pre-commit] X 发现疑似敏感信息，提交已被阻止。处理后重试。"
+        exit 1
+    fi
+fi
+
+# [门禁 2/3] import 卫生（SPEC §12）：virtuallover/ 必须与 astrbot 零耦合。
+# 匹配行首的 Python import 语句（^[[:space:]]*(from astrbot|import astrbot)）并跳过
+# 二进制（-I）：SPEC 字面命令 `grep -rEn "from astrbot|import astrbot" virtuallover/`
+# 会误伤「本包不 import astrbot」式否定注释与 SPEC.md 里引用门禁命令的文档行
+# （门禁将永久自锁），故按其真实意图——拦真实 import 语句——实现。
+echo "[pre-commit] 门禁 2/3：import 卫生（virtuallover/ 不得引用 astrbot）..."
+AB_HITS=$(grep -rEnI "^[[:space:]]*(from astrbot|import astrbot)" virtuallover/ 2>/dev/null)
+if [ -n "$AB_HITS" ]; then
+    echo "[pre-commit] X virtuallover/ 中发现 astrbot 引用（违反 SPEC §12/§14 clean-room 边界）：" >&2
+    echo "$AB_HITS" | head -20 >&2
+    echo "[pre-commit] 提交已被阻止。请改为 SPEC 定义的自有实现后再提交。" >&2
+    exit 1
+fi
+echo "[pre-commit] [OK] virtuallover/ 无 astrbot 引用"
+
+# [门禁 3/3] 上游探针句（SPEC §12）：mnemosyne 总结 prompt 等上游原文不得出现在
+# virtuallover/ 中（总结 prompt 必须独立撰写）。
+# 词表优先级（合规：AGPL 上游文案写入 git 跟踪文件即构成复制分发，故真实特征串
+# 只存本机 gitignored 的 local/agpl-probes.txt；tracked 词表仅作机制文档）：
+#   1) local/agpl-probes.txt —— 本机维护的真实特征串（每行一条 grep -F 固定串）
+#   2) .githooks/probe-patterns.txt —— tracked 兜底（当前为机制说明，无特征串）
+# 两者皆无可用条目时打印「未生效」警告。
+echo "[pre-commit] 门禁 3/3：上游探针句扫描（virtuallover/）..."
+LOCAL_PROBES="local/agpl-probes.txt"
+TRACKED_PROBES=".githooks/probe-patterns.txt"
+if [ -f "$LOCAL_PROBES" ]; then
+    PROBES="$LOCAL_PROBES"
+elif [ -f "$TRACKED_PROBES" ]; then
+    PROBES="$TRACKED_PROBES"
+else
+    PROBES=""
+fi
+if [ -z "$PROBES" ]; then
+    echo "[pre-commit] ! 未找到探针词表，跳过本门禁（请先建立 local/agpl-probes.txt）"
+else
+    PROBE_N=0
+    PROBE_FOUND=0
+    while IFS= read -r pat || [ -n "$pat" ]; do
+        pat=$(printf '%s' "$pat" | tr -d '\r')
+        case "$pat" in ''|\#*) continue ;; esac
+        PROBE_N=$((PROBE_N + 1))
+        HITS=$(grep -rFn -- "$pat" virtuallover/ 2>/dev/null)
+        if [ -n "$HITS" ]; then
+            PROBE_FOUND=1
+            echo "[pre-commit] X 命中探针句：$pat" >&2
+            echo "$HITS" | head -5 >&2
+        fi
+    done < "$PROBES"
+    if [ "$PROBE_FOUND" = "1" ]; then
+        echo "[pre-commit] X 上游探针句命中，提交已被阻止（SPEC §12：总结 prompt 必须独立撰写，禁抄 mnemosyne 原文）。" >&2
+        exit 1
+    fi
+    echo "[pre-commit] [OK] 已扫描 $PROBE_N 条探针句（词表：$PROBES），无命中"
+    if [ "$PROBE_N" = "0" ]; then
+        echo "[pre-commit] ! 探针词表为空（0 条特征串）——本门禁未实际生效，请由维护者补充 local/agpl-probes.txt"
+    fi
+fi
+
+exit 0

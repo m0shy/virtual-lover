@@ -1,0 +1,175 @@
+name: virtual-lover
+
+# ================================================================
+# Virtual-lover 编排（v2：1 容器 + 1 进程）
+#   默认组（常驻）：heart（容器 vl-heart）—— QQ 协议端（OneBot v11，经反向 WS 连宿主机新栈）
+#   legacy 组（仅回退）：astrbot + etcd + minio + milvus
+#     v2 起大脑与记忆由宿主机 virtuallover 单进程承担（Python ≥3.11），
+#     旧五容器编排整体保留在 legacy profile 供 14 天回退窗口使用：
+#       启动回退栈：docker compose --profile legacy up -d
+#     日常 up/stop/ps 不带 --profile 时不会触碰 legacy 组的容器。
+#     ⚠ O10（2026-10-11）：legacy 组容器已实测停机（Exited）——旧 Milvus 库
+#     为空库（证明存档 backup/milvus_check_20261011205548.json（本机 gitignored，不在仓库），总行数 0），
+#     旧栈大脑/记忆已整体被新栈替代；三件套与 astrbot 的数据卷仍在 local/
+#     原位保留（冻结清单见 docs/回退.md），按需可随时以 legacy profile 拉起。
+#     分档回退 SOP（三件套档 / 整组档 + 计时预算）：docs/回退.md
+# 设计要点：
+#   - 容器名/网络为中性命名（vl-heart / vl-nerve）：仅命名层改动，数据卷
+#     （./local/napcat_data 等）原位不变，协议端登录态无缝衔接；
+#     ⚠ 镜像行保持上游官方名（法律红线，不中性化）
+#   - 协议端等待的反连已由迁移脚本改写指向宿主机新栈
+#     （ws://host.docker.internal:6199/ws）；legacy 组内的 astrbot 服务与
+#     etcd/minio/milvus 互相健康门控，全部开机自启（unless-stopped）——
+#     注意 unless-stopped 只对"被 up 过"的容器生效：legacy 组停机后日常
+#     up/stop 不会唤醒它们，这正是 O10 停机语义
+#   - 端口最小暴露：仅本机可访问；6199/19530/9091/9000/9001 纯内部通信，不发布
+#   - 日志轮转上限，防止长期运行撑爆磁盘
+#   - 个人数据全部落在 ./local/（.gitignore 忽略，绝不入库）
+#   - 镜像默认官方源；国内网络在 .env 里取消注释镜像源行即可整体切换
+# ================================================================
+
+# 所有服务共用的日志轮转策略
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  astrbot:
+    # legacy 组：v2 由 virtuallover 新栈替代，仅在回退窗口内启动（14 天）
+    profiles: ["legacy"]
+    # 钉具体版本：latest 的面板密码/配置行为跨版本会变（v4.25 起密码机制不同）
+    image: ${ASTRBOT_IMAGE:-docker.io/soulter/astrbot:v4.28.2}
+    container_name: astrbot
+    environment:
+      # 全新安装时的初始面板密码（setup.bat 生成并写入 .env）。
+      # 透传式写法：宿主未设置时容器内不出现该变量——不能用 ${VAR:-}，
+      # 那会注入空串，v4.28.2 对空/短密码直接抛错导致容器崩溃循环
+      - ASTRBOT_DASHBOARD_INITIAL_PASSWORD
+    ports:
+      - "127.0.0.1:6185:6185"   # 管理面板（仅本机；需手机访问时去掉前缀，注意改默认密码）
+      - "127.0.0.1:4141:4141"   # API聚合插件面板（插件启用后才有服务）
+      - "127.0.0.1:4100:4100"   # 主动消息插件管理端（同上）
+      - "127.0.0.1:5001:5000"   # 表情包插件管理后台（插件开启后才有服务）
+      # 6199 反向 WS 仅供协议端容器（vl-heart）内网反连，不发布到宿主机
+    volumes:
+      - ./local/astrbot_data:/AstrBot/data
+      - ./local/shared_plugin_data:/AstrBot/data/plugin_data
+      # 自研插件挂载行已随 O11 双份退役删除（2026-10-11）：仓库根 plugins/ 目录
+      # 整删（v1 插件源码，已 port-of-own 并入 virtuallover/soul 与 memory）。
+      # legacy 回退的 astrbot 仍可作大脑用，但三个自研插件不再随行——回退语义
+      # 与代价见 docs/回退.md §6（v2 记忆/情绪/日记不随回退迁回旧栈）。
+    restart: unless-stopped
+    depends_on:
+      milvus:
+        condition: service_healthy
+    logging: *logging
+    networks:
+      - vl-nerve
+
+  heart:
+    image: ${NAPCAT_IMAGE:-docker.io/mlikiowa/napcat-docker:latest}
+    container_name: vl-heart
+    environment:
+      - NAPCAT_UID=1000
+      - NAPCAT_GID=1000
+    ports:
+      # R7 中性端口（FUSION_SPEC §3.2）：宿主侧 61990 → 容器 6099——6099 是上游协议端文档默认端口，扫端口指纹即可识别产品；换到 61990 后端口表不再暴露上游名。容器内与 healthcheck（http://localhost:6099）不变。
+      - "127.0.0.1:61990:6099"   # 协议端 WebUI：扫码登录（仅本机浏览器访问）
+    volumes:
+      - ./local/napcat_data:/app/.config/QQ
+      - ./local/napcat_config:/app/napcat/config     # 框架配置持久化（WebUI token、反向 WS）
+    # v2 起不再挂载 shared_plugin_data / astrbot 插件目录：媒体转存与表情包
+    # 均由宿主机新栈以 base64 经 WS 直发（协议端 file.ts 支持），按路径读文件
+    # 的旧通道已随 legacy 组一并退场。
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:6099"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+    networks:
+      - vl-nerve
+
+  # ---------------- Milvus 记忆库三件套（legacy：仅回退模式） ----------------
+  etcd:
+    profiles: ["legacy"]
+    container_name: milvus-etcd
+    image: ${ETCD_IMAGE:-quay.io/coreos/etcd:v3.5.18}
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./local/milvus/volumes/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+    networks:
+      - vl-nerve
+
+  minio:
+    profiles: ["legacy"]
+    container_name: milvus-minio
+    image: ${MINIO_IMAGE:-docker.io/minio/minio:RELEASE.2024-12-18T13-15-44Z}
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - ./local/milvus/volumes/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    restart: unless-stopped
+    # 9000/9001 不发布到宿主机（容器内互访即可）；需要 MinIO 控制台排障时
+    # 临时加回 ports 并用 127.0.0.1:9001:9001，用完移除
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    logging: *logging
+    networks:
+      - vl-nerve
+
+  milvus:
+    profiles: ["legacy"]
+    container_name: milvus-standalone
+    image: ${MILVUS_IMAGE:-docker.io/milvusdb/milvus:v2.6.2}
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MQ_TYPE: woodpecker
+    volumes:
+      - ./local/milvus/volumes/milvus:/var/lib/milvus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    logging: *logging
+    networks:
+      - vl-nerve
+
+networks:
+  vl-nerve:
+    name: vl-nerve

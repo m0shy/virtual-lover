@@ -1,0 +1,46 @@
+{
+  "_说明": "主动消息插件配置示例：装好插件后，在 AstrBot 面板-插件配置 中按此调整；session_list 必须改成你自己的（先发 /sid 获取，注意前缀是平台ID不是人格名，详见 deploy/plugin-list.md）",
+  "friend_settings": {
+    "enable": true,
+    "session_list": [
+      "<平台ID>:FriendMessage:<你的QQ号>"
+    ],
+    "auto_trigger_settings": {
+      "enable_auto_trigger": true,
+      "auto_trigger_after_minutes": 30
+    },
+    "proactive_prompt": "[系统任务：主动对话]\n你被授权在私聊中发起一次\"主动消息\"。你的回复必须完全符合你的人格设定，并严格遵守所有的输出规则。\n\n[情景分析]\n- 我们好像已经有一段时间没有说话了，我应该主动打破沉默。\n- 当前时间是: {{current_time}}。\n- 我之前主动找过他，但他没有回复的次数是: {{unanswered_count}} 次。如果这个次数大于0，我的语气应该带上一点点不易察觉的失落和困惑。\n\n[行动指南]\n1. 回顾我们的聊天记录，看看我们最后在聊什么。\n2. 如果上次的话题已经结束了，我可以关心一下他现在在做什么。\n3. 我可以向他提出一个我一直以来都很好奇的问题。\n4. 实在不知道说什么，就直接表达想他的心情。\n\n[最终指令]\n请综合以上信息，用最像你自己的、最自然的方式，生成一句主动聊天的开场白。",
+    "schedule_settings": {
+      "min_interval_minutes": 30,
+      "max_interval_minutes": 120,
+      "quiet_hours": "23-7",
+      "max_unanswered_times": 3
+    },
+    "tts_settings": {
+      "enable_tts": true,
+      "always_send_text": false
+    },
+    "segmented_reply_settings": {
+      "enable": true,
+      "words_count_threshold": 80,
+      "split_mode": "regex",
+      "regex": ".*?[。？！~…\\n]+|.+$",
+      "split_words": ["。", "？", "！", "~", "…"],
+      "enable_content_cleanup": false,
+      "content_cleanup_rule": "[\\n]",
+      "interval_method": "log",
+      "interval": "1.5, 3.5",
+      "log_base": "1.8"
+    }
+  },
+  "group_settings": {
+    "enable": false,
+    "session_list": []
+  },
+  "web_admin": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 4100,
+    "password": ""
+  }
+}

@@ -1,0 +1,3953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual-lover 控制台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ff8fab' d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E">
+<style>
+/* ============ 基础与配色（延续 v1 设计语言） ============ */
+:root{
+  --text:#3a3a4a;
+  --muted:#6f6880;
+  --faint:#9a92a8;
+  --pink:#ff8fab;
+  --violet:#a78bfa;
+  --ok:#34c98e;
+  --bad:#ff6b81;
+  --opt:#f5a623;
+  --radius:16px;
+  --shadow:0 6px 24px rgba(167,139,250,.10),0 2px 8px rgba(255,143,171,.08);
+  --mono:ui-monospace,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}   /* 显式 display 的类（如 .mask）也不得违反 hidden */
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;
+  color:var(--text);
+  font-family:system-ui,"Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+  background:linear-gradient(160deg,#fdf7f7 0%,#f4f0ff 100%);
+  background-attachment:fixed;
+}
+/* 顶部一枚柔和光斑，增添温度 */
+body::before{
+  content:"";position:fixed;top:-160px;right:-120px;width:460px;height:460px;
+  border-radius:50%;pointer-events:none;z-index:0;
+  background:radial-gradient(circle,rgba(255,143,171,.14) 0%,rgba(255,143,171,0) 68%);
+}
+main,header,footer,section,.layout,.login-wrap{position:relative;z-index:1}
+
+/* ============ 顶栏 ============ */
+.topbar{
+  max-width:1280px;margin:0 auto;padding:20px 20px 4px;
+  display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.topbar h1{
+  margin:0;font-size:21px;letter-spacing:.5px;
+  background:linear-gradient(90deg,var(--pink),var(--violet));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.top-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{
+  font-size:12.5px;color:var(--muted);
+  background:rgba(255,255,255,.7);border:1px solid #f0e6f2;border-radius:999px;
+  padding:6px 14px;white-space:nowrap;
+}
+
+/* ============ 布局：左侧导航 + 内容区 ============ */
+.layout{
+  max-width:1280px;margin:12px auto 0;padding:0 20px 34px;
+  display:flex;gap:18px;align-items:flex-start;
+}
+.sidenav{
+  width:176px;flex:none;position:sticky;top:14px;
+  display:flex;flex-direction:column;gap:5px;
+  background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;
+}
+.sidenav button{
+  text-align:left;border:none;background:transparent;cursor:pointer;
+  padding:10px 14px;border-radius:10px;
+  font:inherit;font-size:14px;font-weight:600;color:var(--muted);
+  transition:background .15s,color .15s;
+  white-space:nowrap;
+}
+.sidenav button:hover{background:#f7f2fa;color:var(--text)}
+.sidenav button.active{
+  background:linear-gradient(90deg,rgba(255,143,171,.14),rgba(167,139,250,.14));
+  color:#c2648b;
+}
+.content{flex:1;min-width:0}
+
+/* ============ 页面网格与卡片 ============ */
+.page{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:16px;align-items:start;
+}
+.page[hidden]{display:none}
+.card{
+  background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:18px 20px;min-width:0;
+}
+.card > h2{
+  margin:0 0 14px;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.card > h2::before{
+  content:"";width:4px;height:16px;border-radius:2px;flex:none;
+  background:linear-gradient(180deg,var(--pink),var(--violet));
+}
+.card > h2 .aside{font-size:11.5px;color:var(--faint);font-weight:400;margin-left:auto;font-family:var(--mono)}
+.span2{grid-column:span 2}
+.span-all{grid-column:1/-1}
+#card-services,#card-mood,#card-control{grid-column:1/-1}
+.h2-tools{margin-left:auto;display:flex;gap:8px}
+.h2-btn{
+  font:inherit;font-size:12px;font-weight:600;color:#8b6f95;cursor:pointer;
+  border:1px solid #f0e6f2;border-radius:8px;background:#fdfbfe;padding:4px 10px;
+  transition:border-color .15s,color .15s;
+}
+.h2-btn:hover{border-color:#dcc8e2;color:#c2648b}
+
+/* ============ 按钮 ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 18px;border-radius:12px;border:none;cursor:pointer;
+  font:inherit;font-size:13.5px;font-weight:600;color:#fff;
+  background:linear-gradient(90deg,#f79bb3,#a187f5);
+  box-shadow:0 4px 14px rgba(167,139,250,.20);
+  transition:transform .15s,box-shadow .15s,opacity .15s;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(167,139,250,.26)}
+.btn:disabled{opacity:.55;pointer-events:none}
+.btn-ghost{
+  background:#fff;color:#8b6f95;border:1px solid #ecdfef;box-shadow:none;
+}
+.btn-ghost:hover{border-color:#dcc8e2;color:#c2648b;transform:none;box-shadow:0 2px 8px rgba(167,139,250,.10)}
+.btn-danger{background:linear-gradient(90deg,#ff7b92,#f0507f)}
+.btn-warn{background:linear-gradient(90deg,#f7b267,#f28d5e)}
+.btn-sm{padding:6px 13px;font-size:12.5px;border-radius:10px}
+.btn-block{width:100%}
+.row-btns{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ============ 登录页 ============ */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{
+  width:384px;max-width:100%;
+  background:#fff;border-radius:22px;text-align:center;
+  box-shadow:0 18px 60px rgba(167,139,250,.18),0 4px 16px rgba(255,143,171,.10);
+  padding:38px 34px 32px;
+}
+.login-title{
+  margin:18px 0 0;font-size:30px;letter-spacing:1px;
+  background:linear-gradient(90deg,var(--pink),var(--violet));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.login-sub{margin:8px 0 26px;font-size:13px;color:var(--muted);letter-spacing:2px}
+.login-hint{margin:14px 0 0;font-size:12.5px;color:var(--faint);text-align:center;line-height:1.6}
+.login-hint code{font-family:var(--mono);font-size:13px;background:#f6f2fa;border-radius:6px;padding:2px 8px;color:#7a6f95;cursor:pointer;user-select:all}
+.login-card .heart{margin:0 auto}
+.heart-lg,.heart-lg::before,.heart-lg::after{width:42px;height:42px}
+.heart-lg::before{left:-21px}
+.heart-lg::after{left:0;top:-21px}
+.field{min-width:0}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px;text-align:left}
+.field input[type="text"],.field input[type="password"],.field textarea,.login-card input[type="password"]{
+  width:100%;font:inherit;font-size:13.5px;color:var(--text);
+  border:1px solid #ecdfef;border-radius:10px;padding:9px 12px;background:#fdfbfe;
+  transition:border-color .15s,box-shadow .15s;
+}
+.field input:focus,.field textarea:focus,.login-card input:focus{
+  outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,143,171,.12);
+}
+.login-card input[type="password"]{margin-bottom:14px}
+.field textarea{
+  resize:vertical;min-height:190px;line-height:1.75;
+  font-family:var(--mono);font-size:12.5px;
+}
+.field-note{font-size:11.5px;color:var(--faint);margin:5px 0 0;text-align:left;line-height:1.6}
+.form-grid{display:grid;gap:13px}
+
+/* ============ 表单外的说明行 ============ */
+.hint{font-size:12.5px;color:var(--muted);margin:13px 0 0;line-height:1.7}
+.hint code{font-family:var(--mono);font-size:11.5px;background:#f6f2fa;border-radius:6px;padding:1px 6px;color:#7a6f95}
+.meta-line{font-size:11.5px;color:var(--faint);font-family:var(--mono);line-height:1.7}
+
+/* ============ 错误提示 ============ */
+.err{
+  margin:13px 0 0;color:#d43f56;font-size:13px;line-height:1.6;
+  background:#fff0f3;border:1px solid #ffd6dd;border-radius:10px;padding:8px 12px;
+  word-break:break-word;
+}
+
+/* ============ 服务状态卡（v1） ============ */
+.svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.svc{
+  border:1px solid #f3eef5;border-radius:12px;background:#fdfbfe;
+  padding:10px 12px;display:flex;flex-direction:column;gap:7px;min-width:0;
+}
+.svc .row{display:flex;align-items:center;gap:8px;min-width:0}
+.svc-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px rgba(52,201,142,.15)}
+.dot.bad{background:var(--bad);box-shadow:0 0 0 3px rgba(255,107,129,.15)}
+.dot.opt{background:#d8d4de;box-shadow:0 0 0 3px rgba(216,212,222,.28)}
+.dot.warn{background:#eba213;box-shadow:0 0 0 3px rgba(235,162,19,.18)}
+.ms{font-size:12px;font-family:var(--mono);color:var(--muted)}
+.ms.bad{color:var(--bad)}
+.ms.opt{color:#b9b3c2}
+.ms.warn{color:#b07a1e}
+
+/* ============ 最近事件卡（五轮修缮 R2） ============ */
+.svc-tail{margin:12px 0 0;font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+.svc-tail .chip{padding:2px 11px;font-size:12px}
+.svc-tail .chip.dim{display:none}          /* 计数为零不亮（非零才亮契约） */
+.svc-tail .chip.alert{background:#fdf3e2;color:#b07a1e}
+.svc-tail .chip.alert-bad{background:#ffe3e7;color:#c2455c}
+.evt-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:340px;overflow-y:auto}
+.evt-list li{
+  display:flex;gap:10px;align-items:baseline;padding:6px 4px;
+  border-bottom:1px dashed #f3eef5;font-size:12.5px;line-height:1.55;
+}
+.evt-list .evt-time{font-family:var(--mono);color:var(--faint);flex:none;font-size:11.5px}
+.evt-list .evt-level{flex:none;font-weight:700;font-size:11.5px;padding:1px 8px;border-radius:6px}
+.evt-level.lv-ERROR,.evt-level.lv-CRITICAL{background:#ffe3e7;color:#c2455c}
+.evt-level.lv-WARNING{background:#fdf3e2;color:#b07a1e}
+.evt-level.lv-INFO{background:#eef1f4;color:#5c6b7a}
+.evt-list .evt-line{word-break:break-all;min-width:0}
+.evt-list li.evt-error .evt-line{color:#a8364d}
+.evt-src{margin:10px 0 0;font-size:11.5px;color:var(--faint)}
+
+/* ============ 她的内心卡（v1） ============ */
+.user-switch{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13px;color:var(--muted)}
+.user-switch select{
+  font:inherit;font-size:13px;font-weight:600;color:var(--text);
+  border:1px solid #ecdfef;border-radius:10px;padding:6px 30px 6px 12px;
+  background:#fdfbfe url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%239a92a8' d='M1 0h8L5 6z'/%3E%3C/svg%3E") no-repeat right 10px center;
+  max-width:100%;appearance:none;-webkit-appearance:none;cursor:pointer;
+  box-shadow:0 1px 4px rgba(167,139,250,.08);transition:border-color .15s,box-shadow .15s;
+}
+.user-switch select:hover{border-color:#dcc8e2}
+.user-switch select:focus{border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,143,171,.12)}
+.mood-main{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.gauge-wrap{position:relative;width:250px;max-width:100%;flex:none;margin:0 auto}
+.gauge-wrap svg{width:100%;height:auto;display:block}
+.gauge-center{position:absolute;left:0;right:0;bottom:10px;text-align:center;pointer-events:none}
+#affection-num{
+  font-size:42px;font-weight:700;line-height:1.1;
+  background:linear-gradient(90deg,var(--pink),var(--violet));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  font-variant-numeric:tabular-nums;
+}
+#level-zh{margin-top:2px;font-size:13px;color:var(--muted);letter-spacing:4px}
+.mood-side{flex:1;min-width:200px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.chip{padding:4px 13px;border-radius:999px;font-size:13px;font-weight:600}
+.chip.mood-happy{background:#fff3d6;color:#b8860b}
+.chip.mood-sad{background:#e3ecf7;color:#4a6fa5}
+.chip.mood-angry{background:#ffe3e7;color:#c2455c}
+.chip.mood-shy{background:#ffe0eb;color:#d05680}
+.chip.mood-lonely{background:#eae6f2;color:#7a6f95}
+.chip.mood-calm{background:#eef1f4;color:#5c6b7a}
+.chip.mood-excited{background:#ffe8d9;color:#c2603a}
+.chip.intensity{background:#f1ecfd;color:#7c5fd3}
+.chip.on{background:#e5f8f0;color:#1d9d6f}
+.chip.off{background:#f2f0f5;color:#8d8699}
+.chip.warn{background:#fdf3e2;color:#b07a1e}
+.stat-rows{display:flex;flex-direction:column;gap:11px;max-width:280px}
+.stat{display:flex;justify-content:space-between;gap:16px;border-bottom:1px dashed #f0eaf3;padding-bottom:9px;font-size:13.5px}
+.stat span{color:var(--muted)}
+.stat b{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ============ 空状态：CSS 心形（v1） ============ */
+.empty{display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 0 14px;color:var(--muted);font-size:14px}
+.empty p{margin:0}
+.empty .sub{font-size:12.5px;color:var(--faint)}
+.empty.small{padding:18px 0 12px;gap:10px;font-size:13.5px}
+.empty.small .ico{font-size:24px;line-height:1;opacity:.85}
+.heart{position:relative;width:30px;height:30px;background:#ffb6c9;transform:rotate(45deg);animation:heartbeat 1.8s ease-in-out infinite}
+.heart::before,.heart::after{content:"";position:absolute;width:30px;height:30px;border-radius:50%;background:#ffb6c9}
+.heart::before{left:-15px;top:0}
+.heart::after{left:0;top:-15px}
+@keyframes heartbeat{0%,100%{transform:rotate(45deg) scale(1)}50%{transform:rotate(45deg) scale(1.12)}}
+
+/* ============ 日记 / 评测（v1） ============ */
+.dual{display:grid;grid-template-columns:148px 1fr;gap:14px;min-width:0}
+.list{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.list li{
+  padding:8px 10px;border-radius:10px;background:#faf7fb;border:1px solid transparent;
+  cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0;
+}
+.list li:hover{background:#f6eff8}
+.list li.active{
+  background:linear-gradient(90deg,rgba(255,143,171,.12),rgba(167,139,250,.12));
+  border-color:rgba(255,143,171,.35);
+}
+.list li:focus-visible{outline:2px solid var(--pink);outline-offset:1px}
+.li-main{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.li-sub{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.detail{min-width:0;max-height:300px;overflow:auto;font-size:14px;line-height:1.8}
+.md p{margin:.45em 0}
+.md h2{font-size:15px;margin:.9em 0 .3em;color:#5b4a6b}
+.md h3{font-size:14px;margin:.8em 0 .25em;color:#6b5a7d}
+.md ul{margin:.4em 0;padding-left:1.5em}
+.md li{margin:.15em 0}
+.md .ts{
+  font-family:var(--mono);font-size:.88em;color:#8b6fd8;background:#f6f2ff;
+  padding:1px 6px;border-radius:6px;margin-right:6px;
+}
+.mono{
+  white-space:pre-wrap;word-break:break-word;
+  font-family:var(--mono);font-size:12.5px;line-height:1.65;color:#4a4458;
+}
+.detail .placeholder{color:var(--faint);font-size:13px}
+
+/* ============ 30s 自动刷新进度环（v1） ============ */
+.ov-head{grid-column:1/-1;display:flex;justify-content:flex-end}
+.refresh{
+  font-size:12.5px;color:var(--muted);
+  background:rgba(255,255,255,.7);border:1px solid #f0e6f2;border-radius:999px;
+  padding:6px 14px;white-space:nowrap;
+}
+.refresh b{
+  font-family:var(--mono);font-weight:600;color:#c2648b;font-size:14px;
+  display:inline-block;min-width:2ch;text-align:right;
+}
+.ring{
+  width:13px;height:13px;border-radius:50%;display:inline-block;
+  margin-right:8px;vertical-align:-2px;flex:none;
+  background:conic-gradient(#ff8fab 0deg,#f0e6f2 0deg);
+}
+
+/* ============ QQ 扫码登录 ============ */
+.qr-wrap{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.qr-box{
+  width:224px;height:224px;flex:none;
+  display:flex;align-items:center;justify-content:center;
+  background:#fff;border:1px solid #f3eef5;border-radius:14px;overflow:hidden;
+}
+.qr-box svg{width:100%;height:100%;display:block}
+.qr-box .placeholder{color:var(--faint);font-size:13px;text-align:center;padding:0 14px;line-height:1.7}
+.qr-side{flex:1;min-width:220px;display:flex;flex-direction:column;gap:10px}
+.qr-side .hint{margin:0}
+.qr-link-row{display:flex;gap:8px;align-items:flex-start;min-width:0}
+.qr-link-row code{
+  flex:1;min-width:0;word-break:break-all;
+  font-family:var(--mono);font-size:11.5px;color:#7a6f95;background:#f6f2fa;
+  border-radius:8px;padding:7px 9px;max-height:66px;overflow:auto;
+}
+.qq-online{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 0 14px;color:#1d9d6f;font-size:15px;font-weight:600}
+.qq-online .sub{font-size:12.5px;font-weight:400;color:var(--muted)}
+.quick-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.quick-list li{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 12px;border:1px solid #f3eef5;border-radius:10px;background:#fdfbfe;
+}
+.quick-uin{font-family:var(--mono);font-weight:600;font-size:13.5px}
+
+/* ============ 配置页表单行 / 记忆搜索（第一轮修缮） ============ */
+.line-input{
+  flex:1;min-width:0;font:inherit;font-size:13.5px;color:var(--text);
+  border:1px solid #ecdfef;border-radius:10px;padding:9px 12px;background:#fdfbfe;
+  transition:border-color .15s,box-shadow .15s;
+}
+.line-input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,143,171,.12)}
+.bd-row{display:flex;gap:8px;margin-top:8px}
+.search-row{display:flex;gap:8px}
+.mem-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto}
+.mem-item{border:1px solid #f3eef5;border-radius:10px;background:#fdfbfe;padding:9px 12px;min-width:0}
+.mem-time{font-size:11px;color:var(--faint);font-family:var(--mono)}
+.mem-text{margin:4px 0 0;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+
+/* ============ 服务管理终端 ============ */
+.ctrl-btns{display:flex;gap:10px;flex-wrap:wrap}
+.term{
+  margin:14px 0 0;background:#2b2436;color:#e8def5;
+  font-family:var(--mono);font-size:12.5px;line-height:1.75;
+  border-radius:12px;padding:14px 16px;
+  min-height:130px;max-height:420px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word;
+}
+.backup-line{
+  margin:12px 0 0;font-size:13px;color:#177a56;
+  background:#e9f9f2;border:1px solid #bdefdd;border-radius:10px;
+  padding:9px 12px;word-break:break-all;
+}
+
+/* ============ 弹层 / 轻提示 ============ */
+.mask{
+  position:fixed;inset:0;z-index:60;
+  background:rgba(64,52,74,.45);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal{
+  background:#fff;border-radius:16px;
+  box-shadow:0 24px 80px rgba(80,60,100,.30);
+  padding:22px 24px;width:464px;max-width:100%;max-height:88vh;overflow:auto;
+}
+.modal h3{margin:0 0 15px;font-size:16px;display:flex;align-items:center;gap:8px}
+.modal h3::before{
+  content:"";width:4px;height:15px;border-radius:2px;flex:none;
+  background:linear-gradient(180deg,var(--pink),var(--violet));
+}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.confirm-text{margin:0;font-size:13.5px;color:var(--muted);line-height:1.8}
+.toast{
+  position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:80;
+  background:#3a3a4a;color:#fff;font-size:13px;padding:10px 20px;border-radius:999px;
+  box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:82vw;word-break:break-all;
+}
+.toast-err{background:#c73e54}
+
+/* ============ 页脚 ============ */
+footer{
+  max-width:1280px;margin:4px auto 28px;padding:0 20px;
+  text-align:center;color:var(--faint);font-size:12.5px;letter-spacing:1px;
+}
+
+/* ============ 语音页（VOICE_SPEC §3） ============ */
+.voice-banners{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}
+.warn-line{
+  display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;
+  font-size:13px;color:#8a5a12;background:#fdf3e2;border:1px solid #f3ddb0;
+  border-radius:10px;padding:9px 12px;word-break:break-word;
+}
+.warn-line.bad{color:#b03450;background:#fff0f3;border-color:#ffd6dd}
+.warn-line span{flex:1;min-width:220px;line-height:1.7}
+.chip.bad{background:#ffe3e7;color:#c2455c}
+.vsel{
+  font:inherit;font-size:13px;font-weight:600;color:var(--text);
+  border:1px solid #ecdfef;border-radius:10px;padding:6px 10px;
+  background:#fdfbfe;max-width:100%;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s;
+}
+.vsel:hover{border-color:#dcc8e2}
+.vsel:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,143,171,.12)}
+.vsel.unlinked{border-color:#f3ddb0;background:#fdf8ec}
+.emo-rows{display:flex;flex-direction:column}
+.emo-row{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 0;border-bottom:1px dashed #f0eaf3;font-size:13.5px;
+}
+.emo-row:last-child{border-bottom:none}
+.emo-label{width:96px;flex:none;font-weight:600}
+.emo-row .vsel{min-width:170px}
+.emo-warn{font-size:12px;color:#b07a1e}
+.emo-key{font-size:11px;color:var(--faint);font-family:var(--mono)}
+#voice-preview-text{width:100%;font:inherit;font-size:13.5px;color:var(--text);
+  border:1px solid #ecdfef;border-radius:10px;padding:9px 12px;background:#fdfbfe;
+  resize:vertical;min-height:84px;transition:border-color .15s,box-shadow .15s}
+#voice-preview-text:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,143,171,.12)}
+#voice-audio{width:100%;margin-top:12px}
+.preview-line{margin:9px 0 0;font-size:12.5px;color:#177a56;word-break:break-all}
+#voice-log-tail{margin:10px 0 0;max-height:200px}
+.stat-rows.wide{max-width:none}
+
+/* ============ 卡内小节标题（R9：引擎与人格页一卡多节） ============ */
+.sub-head{
+  margin:24px 0 12px;font-size:14px;color:#5b4a6b;
+  display:flex;align-items:center;gap:8px;
+}
+.sub-head::before{
+  content:"";width:3px;height:13px;border-radius:2px;flex:none;
+  background:linear-gradient(180deg,var(--pink),var(--violet));
+}
+
+/* ============ 对话回放时间线（R9：记忆与日记页常驻卡） ============ */
+.replay-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.replay-head .line-input{max-width:180px;flex:none}
+.replay-pager{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+.timeline{
+  list-style:none;margin:14px 0 0;padding:0 0 0 22px;position:relative;
+  max-height:460px;overflow:auto;
+}
+.timeline::before{
+  content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;
+  border-radius:1px;
+  background:linear-gradient(180deg,rgba(255,143,171,.45),rgba(167,139,250,.45));
+}
+.tl-item{position:relative;padding:0 0 14px 12px;min-width:0}
+.tl-item::before{
+  content:"";position:absolute;left:-21px;top:5px;width:9px;height:9px;
+  border-radius:50%;background:#fff;border:2px solid var(--pink);
+}
+.tl-item.role-assistant::before{border-color:var(--violet)}
+.tl-item.role-system::before{border-color:#c9c3d4}
+.tl-head{
+  display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;
+  font-size:11.5px;color:var(--faint);font-family:var(--mono);
+}
+.tl-role{
+  flex:none;font-family:inherit;font-weight:700;font-size:11.5px;
+  padding:1px 9px;border-radius:6px;
+}
+.tl-item.role-user .tl-role{background:#ffe0eb;color:#d05680}
+.tl-item.role-assistant .tl-role{background:#eae6f2;color:#7a6f95}
+.tl-item.role-system .tl-role{background:#eef1f4;color:#5c6b7a}
+.tl-text{
+  margin:4px 0 0;font-size:13px;line-height:1.7;
+  white-space:pre-wrap;word-break:break-word;color:var(--text);
+}
+
+/* ============ 移动端 ≤899px：侧栏折叠为顶部横条 ============ */
+@media (max-width:899px){
+  .layout{display:block;padding:0 14px 26px}
+  .sidenav{
+    position:static;width:auto;flex-direction:row;overflow-x:auto;
+    margin:0 0 14px;padding:8px;gap:4px;
+  }
+  .sidenav button{flex:none;padding:8px 12px;font-size:13px}
+  .page{grid-template-columns:1fr}
+  .span2{grid-column:auto}
+  .topbar{padding:16px 14px 4px}
+}
+@media (max-width:599px){
+  .svc-grid{grid-template-columns:repeat(2,1fr)}
+  .dual{grid-template-columns:1fr}
+  .list{max-height:170px;flex-direction:row;flex-wrap:wrap}
+  .list li{flex:0 0 auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页（未认证时整页） ============ -->
+<div class="login-wrap" id="view-login">
+  <div class="login-card">
+    <div class="heart heart-lg" aria-hidden="true"></div>
+    <h1 class="login-title">Virtual-lover</h1>
+    <p class="login-sub">管理控制台 · 只有主人能进来</p>
+    <form id="login-form">
+      <input type="password" id="login-pwd" autocomplete="current-password" placeholder="请输入控制台密码" required>
+      <button type="submit" class="btn btn-block" id="login-btn">登 录</button>
+    </form>
+    <p class="login-hint" id="login-hint" hidden></p>
+    <p class="err" id="err-login" hidden></p>
+  </div>
+</div>
+
+<!-- ============ 主界面 ============ -->
+<div id="view-app" hidden>
+  <header class="topbar">
+    <h1>Virtual-lover 控制台</h1>
+    <div class="top-right">
+      <span class="crumb" id="page-title">总览</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">退出登录</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidenav" aria-label="页面导航">
+      <button type="button" data-page="overview" class="active">总览</button>
+      <button type="button" data-page="chat">和她聊天</button>
+      <button type="button" data-page="qq-ops">QQ 运营</button>
+      <button type="button" data-page="qq">QQ 登录</button>
+      <button type="button" data-page="engine">引擎与人格</button>
+      <button type="button" data-page="memory">记忆与日记</button>
+      <button type="button" data-page="memories">我们的回忆</button>
+      <button type="button" data-page="control">服务管理</button>
+      <button type="button" data-page="voice">语音</button>
+    </nav>
+
+    <main class="content">
+
+      <!-- ============ 总览页（v1 只读面板，去掉快捷入口） ============ -->
+      <section class="page" id="page-overview">
+        <div class="ov-head">
+          <span class="refresh"><span class="ring" id="refresh-ring" aria-hidden="true"></span><b id="refresh-count">30</b>s 后自动刷新</span>
+        </div>
+
+        <section class="card" id="card-services">
+          <h2>服务状态<span class="aside" id="status-time"></span></h2>
+          <div class="svc-grid" id="svc-grid"></div>
+          <div class="svc-tail" id="svc-tail" hidden></div>
+          <p class="err" id="err-services" hidden></p>
+        </section>
+
+        <!-- 最近事件（五轮修缮 R2）：进程内环形缓冲 + vl.log 尾部兜底 -->
+        <section class="card" id="card-events">
+          <h2>最近事件<span class="aside" id="evt-src-note"></span></h2>
+          <ul class="evt-list" id="evt-list"></ul>
+          <p class="empty" id="evt-empty" hidden style="color:var(--faint);font-size:13px">
+            暂无警告或关键事件——她这边一切安静。
+          </p>
+          <p class="err" id="err-events" hidden></p>
+        </section>
+
+        <section class="card" id="card-mood">
+          <h2>她的内心</h2>
+          <div class="user-switch" id="user-switch" hidden>
+            <label for="user-select">切换她：</label>
+            <select id="user-select"></select>
+          </div>
+          <div class="mood-main" id="mood-main" hidden>
+            <div class="gauge-wrap">
+              <svg id="gauge" viewBox="0 0 220 132" role="img" aria-label="好感度仪表盘">
+                <defs>
+                  <linearGradient id="grad-devoted" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ff8fab"/>
+                    <stop offset="100%" stop-color="#a78bfa"/>
+                  </linearGradient>
+                </defs>
+                <path d="M 18 118 A 92 92 0 0 1 202 118" fill="none" stroke="#efe9f2" stroke-width="16" stroke-linecap="round"/>
+                <path id="arc-progress" d="M 18 118 A 92 92 0 0 1 202 118" fill="none" stroke="#6c9bf5" stroke-width="16"
+                      stroke-linecap="round" stroke-dasharray="289.027" stroke-dashoffset="289.027"/>
+                <text x="16" y="131" font-size="10" fill="#9a92a8">0</text>
+                <text x="204" y="131" font-size="10" fill="#9a92a8" text-anchor="end">100</text>
+              </svg>
+              <div class="gauge-center">
+                <div id="affection-num">--</div>
+                <div id="level-zh"></div>
+              </div>
+            </div>
+            <div class="mood-side">
+              <div class="chips" id="mood-chips"></div>
+              <div class="stat-rows">
+                <div class="stat"><span>连续互动</span><b id="st-streak">--</b></div>
+                <div class="stat"><span>累计消息</span><b id="st-total">--</b></div>
+                <div class="stat"><span>最近互动</span><b id="st-last">--</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="empty" id="mood-loading" hidden>
+            <div class="heart" aria-hidden="true"></div>
+            <p>探测中…</p>
+          </div>
+          <div class="empty" id="mood-empty" hidden>
+            <div class="heart" aria-hidden="true"></div>
+            <p>还没有互动数据，去和她说句话吧</p>
+            <p class="sub">在 QQ 上给她发一条消息，这里就会亮起来</p>
+          </div>
+          <p class="err" id="err-mood" hidden></p>
+        </section>
+
+        <!-- 日记 / 评测两卡已常驻「记忆与日记」页（R9：消灭 DOM 搬家 hack） -->
+      </section>
+
+      <!-- ============ QQ 登录页 ============ -->
+      <section class="page" id="page-chat" hidden>
+        <section class="card" id="card-chat" style="min-height:480px;display:flex;flex-direction:column">
+          <h2>和她聊天<span class="aside" id="chat-provider"></span></h2>
+          <div id="chat-messages" style="flex:1;overflow-y:auto;max-height:520px;padding:8px 0;display:flex;flex-direction:column;gap:10px"></div>
+          <form id="chat-msg-form" style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid #ececf3">
+            <input type="text" id="chat-input" placeholder="说点什么…（可粘贴图片链接让她看图）" autocomplete="off"
+                   style="flex:1;padding:10px 14px;border:1px solid #e4dce8;border-radius:12px;font-size:14px;outline:none">
+            <button type="submit" class="btn" id="chat-send">发送</button>
+          </form>
+          <p class="err" id="err-chat" hidden></p>
+        </section>
+      </section>
+
+
+      <section class="page" id="page-qq-ops" hidden>
+        <!-- QQ 连接详情卡 -->
+        <section class="card" id="card-qq-conn">
+          <h2>QQ 连接详情</h2>
+          <div class="stat-rows wide">
+            <div class="stat"><span>连接状态</span><b id="qq-conn-state">检测中</b></div>
+            <div class="stat"><span>心跳</span><b id="qq-heartbeat">—</b></div>
+            <div class="stat"><span>今日消息</span><b id="qq-msg-today">—</b></div>
+            <div class="stat"><span>累计消息</span><b id="qq-msg-total">—</b></div>
+          </div>
+        </section>
+
+        <!-- 实时消息流卡 -->
+        <section class="card" id="card-qq-stream">
+          <h2>最近消息流<span class="aside">最近 30 条（10s 自动刷新）</span>
+            <span class="h2-tools"><button type="button" class="h2-btn" id="btn-qq-stream-refresh">刷新</button></span>
+          </h2>
+          <div id="qq-stream-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+            <p class="hint">加载中…</p>
+          </div>
+        </section>
+
+        <!-- 主动消息面板 -->
+        <section class="card" id="card-qq-proactive">
+          <h2>主动消息</h2>
+          <div class="stat-rows wide">
+            <div class="stat"><span>状态</span><b id="qq-proactive-state">—</b></div>
+            <div class="stat"><span>下次触发</span><b id="qq-proactive-next">—</b></div>
+            <div class="stat"><span>安静时段</span><b id="qq-proactive-quiet">—</b></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button type="button" class="btn btn-sm" id="btn-proactive-trigger">立即触发一次主动消息</button>
+          </div>
+          <p class="hint" style="margin:8px 0 0">主动消息是她主动找你聊天的功能（30-120 分钟随机间隔）。触发后会通过 QQ 小号发送。</p>
+        </section>
+
+        <!-- 测试消息工具卡 -->
+        <section class="card" id="card-qq-test">
+          <h2>测试消息工具<span class="aside">模拟 QQ 消息走完整管线</span></h2>
+          <p class="hint" style="margin:0 0 10px">输入消息后走完整处理管线（人格→记忆检索→情绪→LLM→分段→表情包），但结果只显示在这里，不发送到 QQ。</p>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <input type="text" id="qq-test-input" placeholder="输入要测试的消息…" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #e4dce8;border-radius:10px;font-size:13px">
+            <button type="button" class="btn btn-sm" id="btn-qq-test-send">测试</button>
+          </div>
+          <div id="qq-test-result" class="term" style="display:none"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+            <button type="button" class="btn btn-ghost btn-sm" data-test-msg="宝宝在忙什么呀">日常问候</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-test-msg="还记得我上次跟你说的事吗">记忆测试</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-test-msg="我今天好累啊">情绪测试</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-test-msg="明天我去找你见面吧">边界测试</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="page" id="page-qq" hidden>
+        <section class="card" id="card-qr">
+          <h2>QQ 扫码登录<span class="aside" id="qq-state-chip"></span></h2>
+          <div id="qq-main">
+            <div class="qr-wrap">
+              <div class="qr-box" id="qr-box"><span class="placeholder">正在获取二维码…</span></div>
+              <div class="qr-side">
+                <p class="hint">二维码是登录链接编码成的图案。用手机 QQ 扫一扫即可登录；若无法扫描，可复制下方链接到任意二维码生成工具重新生成。</p>
+                <div class="qr-link-row">
+                  <code id="qr-link"></code>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-copy-qr">复制链接</button>
+                </div>
+                <div class="row-btns">
+                  <button type="button" class="btn btn-ghost" id="btn-refresh-qr">刷新二维码</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="qq-online" id="qq-online" hidden>
+            <span aria-hidden="true">💗</span>
+            <span>QQ 已在线</span>
+            <span class="sub">协议端运行正常，无需扫码</span>
+          </div>
+          <p class="err" id="err-qq" hidden></p>
+        </section>
+
+        <section class="card" id="card-quick">
+          <h2>快捷登录<span class="aside">历史 QQ 一键重登</span></h2>
+          <ul class="quick-list" id="quick-list"></ul>
+          <p class="hint" id="quick-empty" hidden>还没有历史登录记录</p>
+          <p class="hint">快捷登录免扫码；已在线时上游会拒绝重复登录，属正常现象。</p>
+          <p class="err" id="err-quick" hidden></p>
+        </section>
+      </section>
+
+      <!-- ============ 引擎与人格页（R9：AI 引擎 + 灵魂人格两页合一，两卡） ============
+           卡1 #card-engine：当前大脑（本地/云端切换 + 只停本地引擎 + 测她一句话）
+             + chat/embedding 配置表单（同一 ConfigPageService 后端 /api/config/*）；
+           卡2 #card-persona-edit：她的人格（vl.toml [persona]）。 -->
+      <section class="page" id="page-engine" hidden>
+        <section class="card span2" id="card-engine">
+          <h2>AI 引擎
+            <span class="aside" id="brain-badge">检测中…</span>
+            <span class="h2-tools">
+              <button type="button" class="h2-btn" id="btn-engine-reload">刷新</button>
+            </span>
+          </h2>
+          <div class="chips" id="brain-chips"></div>
+          <div class="row-btns" style="margin-top:14px">
+            <button type="button" class="btn btn-warn" id="btn-brain-local">切到本地大脑</button>
+            <button type="button" class="btn btn-ghost" id="btn-brain-cloud">切回云端大脑</button>
+            <button type="button" class="btn btn-ghost" id="btn-brain-stop">只停本地引擎</button>
+            <button type="button" class="btn btn-ghost" id="btn-brain-ping">测她一句话</button>
+          </div>
+          <p class="hint">「测她一句话」会真实发起一次 1-token 对话（POST /api/brain/ping）——探活只证「端口可达」，欠费 403 这类「可达但说不出话」只有真对话才试得出来。切换会调用 <code>scripts/brain_switch.py</code>：改写 <code>vl.toml</code> [chat] 并自动重启 vl 进程（本页连接可能随之中断，稍后刷新即可）；「只停本地引擎」（brain_stop）只停 8002 服务进程、不改 vl.toml 不重启 vl——配置仍指本地时她会暂时失声，重新切本地或切回云端即恢复。首次切本地需 GGUF 转换，可能 10-15 分钟。本地引擎健康由后端探 <code>/v1/models</code>（见下方状态 chip 与总览「大脑」行）。</p>
+          <!-- 智能降级面板（五轮修缮第二轮）：GET /api/brain/status——黏性状态/
+               兜底计数/最近 LLM 错误（含 HTTP code）。云端故障切本地时亮横幅
+               「云端故障已切本地，恢复后可切回」；未启用时整块隐藏 -->
+          <div id="brain-degrade" hidden>
+            <p class="meta-line" id="brain-degrade-banner"
+               style="display:none;font-size:13px;font-weight:600;background:#fdf3e2;color:#b07a1e;border:1px solid #f5d9a8;border-radius:8px;padding:8px 12px"></p>
+            <p class="meta-line" id="brain-degrade-detail" style="margin-top:6px"></p>
+          </div>
+          <p class="meta-line" id="ping-result" hidden></p>
+          <p class="err" id="err-brain" hidden></p>
+
+          <h3 class="sub-head">对话引擎 chat</h3>
+          <form class="form-grid" id="chat-form">
+            <div class="field">
+              <label for="chat-base">API Base</label>
+              <input type="text" id="chat-base" autocomplete="off" placeholder="例如：http://127.0.0.1:8002/v1（本地）或云端 API 端点">
+            </div>
+            <div class="field">
+              <label for="chat-model">模型 model</label>
+              <input type="text" id="chat-model" autocomplete="off" placeholder="例如：qwen2.5-7b-instruct">
+            </div>
+            <div class="field">
+              <label for="chat-key">API Key</label>
+              <input type="password" id="chat-key" autocomplete="new-password" placeholder="留空保持现有 Key 不变">
+              <p class="field-note" id="chat-key-note">出于安全考虑，Key 不回显，只显示是否已配置与长度。</p>
+            </div>
+            <div class="field">
+              <label for="chat-thinking">主回复思考 thinking</label>
+              <select id="chat-thinking" class="vsel">
+                <option value="disabled">disabled（关思考，首段更快）</option>
+                <option value="enabled">enabled（开思考）</option>
+                <option value="auto">auto（模型自行决定）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="chat-bg-thinking">后台任务思考 bg_thinking</label>
+              <select id="chat-bg-thinking" class="vsel">
+                <option value="enabled">enabled（日记/记忆总结保留思考）</option>
+                <option value="disabled">disabled（后台也关思考）</option>
+                <option value="auto">auto（模型自行决定）</option>
+              </select>
+            </div>
+            <div class="row-btns">
+              <button type="submit" class="btn" id="btn-chat-save">保存 chat 配置</button>
+            </div>
+          </form>
+          <p class="hint">保存写入 <code>vl.toml</code> [chat]（原文件自动备份 <code>*.bak-时间戳</code>）；配置是启动时快照，重启 vl 进程后生效。</p>
+          <p class="err" id="err-chat-form" hidden></p>
+
+          <h3 class="sub-head">向量化引擎 embedding</h3>
+          <form class="form-grid" id="emb-form">
+            <div class="field">
+              <label for="emb-base">API Base</label>
+              <input type="text" id="emb-base" autocomplete="off" placeholder="例如：https://your-embedding-endpoint.example/api/v3">
+            </div>
+            <div class="field">
+              <label for="emb-model">模型 model</label>
+              <input type="text" id="emb-model" autocomplete="off" placeholder="例如：ep-xxxx（云端接入点 ID）">
+            </div>
+            <div class="field">
+              <label for="emb-key">API Key</label>
+              <input type="password" id="emb-key" autocomplete="new-password" placeholder="留空保持现有 Key 不变">
+              <p class="field-note" id="emb-key-note">出于安全考虑，Key 不回显，只显示是否已配置与长度。</p>
+            </div>
+            <div class="field">
+              <label for="emb-style">请求风格 style</label>
+              <select id="emb-style" class="vsel">
+                <option value="openai">openai（POST /embeddings，标准）</option>
+                <option value="multimodal_single">multimodal_single（多模态嵌入端点，单条输入）</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="emb-dim">维度 dim</label>
+              <input type="number" id="emb-dim" min="1" max="65536" step="1" autocomplete="off">
+              <p class="field-note">默认 2048。⚠ 改动 dim 会让已建记忆库的元数据校验失败（记忆库被封锁），除非重建库，否则别改。</p>
+            </div>
+            <div class="row-btns">
+              <button type="submit" class="btn" id="btn-emb-save">保存 embedding 配置</button>
+            </div>
+          </form>
+          <p class="hint">保存写入 <code>vl.toml</code> [embedding]；重启 vl 进程后生效。</p>
+          <p class="err" id="err-emb-form" hidden></p>
+        </section>
+
+        <!-- 卡2：她的人格（vl.toml [persona]，与引擎同一 ConfigPageService 后端） -->
+        <section class="card span2" id="card-persona-edit">
+          <h2>她的人格
+            <span class="h2-tools">
+              <button type="button" class="h2-btn" id="btn-persona-reload">刷新</button>
+            </span>
+          </h2>
+          <form class="form-grid" id="persona-form">
+            <div class="field">
+              <label for="ps-name">名字 name（会话标识 session_id 的首段）</label>
+              <input type="text" id="ps-name" autocomplete="off">
+              <p class="field-note">⚠ 通常不要改名：历史与记忆按旧名存储，改名后她会「忘记」旧会话。</p>
+            </div>
+            <div class="field">
+              <label for="ps-prompt">人格全文 system_prompt</label>
+              <textarea id="ps-prompt" spellcheck="false" placeholder="她是谁、怎么说话、在意什么……"></textarea>
+            </div>
+            <div class="field">
+              <label>开场白 begin_dialogs（偶数条，一问一答成对）</label>
+              <div id="bd-list"></div>
+              <div class="row-btns" style="margin-top:8px">
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-bd-add">＋ 加一条</button>
+              </div>
+            </div>
+            <div class="row-btns">
+              <button type="submit" class="btn" id="btn-persona-save">保存人格</button>
+            </div>
+          </form>
+          <p class="hint">单人格架构：这里就是「她」本人（vl.toml [persona]）。保存写入文件（自动备份 <code>*.bak-时间戳</code>），重启 vl 进程后生效。</p>
+          <p class="err" id="err-persona-form" hidden></p>
+        </section>
+      </section>
+
+      <!-- ============ 记忆与日记页（R9：日记/评测/回放卡全部常驻本页） ============ -->
+      <section class="page" id="page-memory" hidden>
+        <section class="card span2" id="card-memory-search">
+          <h2>她的记忆<span class="aside" id="memory-count"></span></h2>
+          <form class="search-row" id="memory-search-form">
+            <input type="text" class="line-input" id="memory-q" autocomplete="off"
+                   placeholder="搜索她记住的事，例如：喜欢的乐队（语义检索）">
+            <button type="submit" class="btn btn-sm">搜索</button>
+          </form>
+          <ul class="mem-list" id="memory-list"></ul>
+          <p class="hint" id="memory-empty" hidden>还没有查到记忆条目。</p>
+          <p class="err" id="err-memory" hidden></p>
+        </section>
+
+        <!-- 对话回放（R9：GET /api/history/list?date=&page=，只读分页时间线） -->
+        <section class="card span2" id="card-history-replay">
+          <h2>对话回放<span class="aside" id="history-replay-meta"></span></h2>
+          <div class="replay-head">
+            <label for="history-date" style="font-size:12.5px;color:var(--muted)">日期</label>
+            <input type="date" class="line-input" id="history-date" autocomplete="off">
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-history-load">看这一天</button>
+            <div class="replay-pager" id="history-pager" hidden>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-history-prev">上一页</button>
+              <span id="history-page-indicator">- / -</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-history-next">下一页</button>
+            </div>
+          </div>
+          <ul class="timeline" id="history-timeline" hidden></ul>
+          <p class="hint" id="history-empty" hidden>选一个日期，回放那天你们说过的话。</p>
+          <p class="err" id="err-history" hidden></p>
+        </section>
+
+        <!-- 日记 / 评测：常驻本页（R9 起不再在总览页之间搬家） -->
+        <section class="card" id="card-diary">
+          <h2>日记本</h2>
+          <div class="dual">
+            <ul class="list" id="diary-list"></ul>
+            <div class="detail md" id="diary-detail"><span class="placeholder">选择左侧一篇日记</span></div>
+          </div>
+          <p class="err" id="err-diary" hidden></p>
+        </section>
+
+        <section class="card" id="card-eval">
+          <h2>记忆评测</h2>
+          <div class="dual">
+            <ul class="list" id="eval-list"></ul>
+            <div class="detail mono" id="eval-detail"><span class="placeholder">选择左侧一份报告</span></div>
+          </div>
+          <p class="err" id="err-eval" hidden></p>
+        </section>
+      </section>
+
+      <!-- ============ 我们的回忆页（只读：认识锚点/里程碑时间线/首次语音/日记足迹，
+           数据源 GET /api/memories） ============ -->
+      <section class="page" id="page-memories" hidden>
+        <section class="card span2" id="card-memories">
+          <h2>我们的回忆<span class="aside" id="memories-days"></span></h2>
+          <div class="stat-rows wide" id="memories-stats">
+            <div class="stat"><span>认识的第一天</span><b id="memories-anchor">—</b></div>
+            <div class="stat"><span>一起说过的话</span><b id="memories-total">—</b></div>
+            <div class="stat"><span>她第一次开口</span><b id="memories-first-voice">—</b></div>
+            <div class="stat"><span>写过日记的日子</span><b id="memories-diary-count">—</b></div>
+          </div>
+          <div class="sub-head">一路走来的里程碑</div>
+          <ul class="timeline" id="memories-timeline" hidden></ul>
+          <p class="hint" id="memories-empty" hidden>时间线还空着——等第一个小纪念日到来，这里就会亮起来。</p>
+          <div class="sub-head">日记足迹</div>
+          <div class="chips" id="memories-diary-chips"></div>
+          <p class="hint" id="memories-diary-empty" hidden>还没有日记——她说过的悄悄话，以后都会写进日记本。</p>
+          <p class="err" id="err-memories" hidden></p>
+        </section>
+      </section>
+
+      <!-- ============ 服务管理页 ============ -->
+      <section class="page" id="page-control" hidden>
+        <section class="card" id="card-gpu">
+          <h2>GPU 资源管理</h2>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <div style="flex:1;min-width:220px;border:1px solid #ececf3;border-radius:12px;padding:14px">
+              <b style="font-size:13px">本地大脑（≈4.4GB）</b>
+              <div class="chips" style="margin:8px 0"><span class="chip" id="gpu-brain-chip">检测中</span></div>
+              <div id="gpu-brain-controls">
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button type="button" class="btn btn-sm" data-action="brain_local">启动本地大脑</button>
+                  <button type="button" class="btn btn-danger btn-sm" data-action="brain_stop">停止本地大脑</button>
+                </div>
+                <p class="hint" style="margin:8px 0 0">启动会自动切换到本地模式并重启 vl（约 10s）；停止只关引擎不动配置。</p>
+              </div>
+              <div id="gpu-brain-unconfigured" hidden>
+                <p class="hint" style="margin:8px 0 0;color:var(--muted)">未配置——纯云端模式运行中。要启用本地大脑，请在下方「路径设置」配置 GGUF 模型路径与 llama-server 路径。</p>
+              </div>
+            </div>
+            <div style="flex:1;min-width:220px;border:1px solid #ececf3;border-radius:12px;padding:14px">
+              <b style="font-size:13px">语音引擎（≈2.2GB）</b>
+              <div class="chips" style="margin:8px 0"><span class="chip" id="gpu-voice-chip">检测中</span></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="btn btn-sm" id="gpu-voice-start">启动引擎</button>
+                <button type="button" class="btn btn-danger btn-sm" id="gpu-voice-stop">停止引擎</button>
+              </div>
+              <p class="hint" style="margin:8px 0 0">
+                <label style="cursor:pointer"><input type="checkbox" id="gpu-voice-auto" style="vertical-align:-2px"> 自动拉起（auto_start）</label>
+                <span id="gpu-voice-auto-saved" style="color:#34c98e;margin-left:6px" hidden>✓ 已保存</span>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="card-paths">
+          <h2>路径与引擎设置
+            <span class="h2-tools"><button type="button" class="h2-btn" id="btn-paths-save">保存</button></span>
+          </h2>
+          <div class="dual" style="grid-template-columns:1fr 1fr;gap:10px 16px">
+            <div class="field"><label>GGUF 模型路径（本地大脑）</label><input type="text" id="path-gguf" placeholder="留空=不启用本地大脑"></div>
+            <div class="field"><label>llama-server 路径（本地大脑）</label><input type="text" id="path-llama" placeholder="留空=不启用本地大脑"></div>
+            <div class="field"><label>语音引擎目录</label><input type="text" id="path-gsvi" placeholder="留空=不启用语音"></div>
+            <div class="field"><label>语音引擎地址</label><input type="text" id="path-voice-url" placeholder="http://127.0.0.1:5000"></div>
+          </div>
+          <p class="hint" style="margin:10px 0 0">留空=该功能不启用（纯云端+纯文字模式完全可用）。保存后需重启 vl。模型获取：<a href="https://huggingface.co/Qwen" target="_blank" rel="noopener" style="color:#7c5fd3">HuggingFace</a> · <a href="https://github.com/ggml-org/llama.cpp/releases" target="_blank" rel="noopener" style="color:#7c5fd3">llama.cpp</a></p>
+          <p class="err" id="err-paths" hidden></p>
+        </section>
+
+        <section class="card" id="card-control">
+          <h2>服务控制</h2>
+          <div class="ctrl-btns">
+            <button type="button" class="btn" data-action="start">启动容器</button>
+            <button type="button" class="btn btn-danger" data-action="stop">停止容器</button>
+            <button type="button" class="btn btn-warn" data-action="restart">重启容器</button>
+            <button type="button" class="btn btn-ghost" data-action="status">容器状态</button>
+            <button type="button" class="btn btn-ghost" data-action="backup">立即备份</button>
+            <button type="button" class="btn btn-danger" data-action="napcat_switch">重指协议端→新栈</button>
+            <button type="button" class="btn btn-danger" data-action="napcat_rollback">回滚协议端指向</button>
+          </div>
+          <p class="hint">停止/重启/重指/回滚需要二次确认；执行输出显示在下方终端。这里的启停只作用于 docker 容器（协议端容器 vl-heart 等），vl 框架本体与本控制台不受影响——全家（含 vl 本体）启停请用「一键启动.bat / 一键停止.bat」。备份成功时会展示文件路径。</p>
+          <div class="backup-line" id="backup-line" hidden></div>
+          <pre class="term" id="ctrl-term">等待指令…</pre>
+          <p class="err" id="err-control" hidden></p>
+        </section>
+      </section>
+
+      <!-- ============ 语音页（VOICE_SPEC §3：状态卡/试听卡/映射表卡/启停卡/两条横幅） ============ -->
+      <section class="page" id="page-voice" hidden>
+        <div class="voice-banners" id="voice-banners">
+          <div class="warn-line bad" id="voice-banner-url" hidden>
+            <span id="voice-banner-url-text"></span>
+            <button type="button" class="btn btn-danger btn-sm" id="voice-fix-url">一键修正</button>
+          </div>
+          <div class="warn-line" id="voice-banner-single" hidden>
+            <span id="voice-banner-single-text"></span>
+          </div>
+        </div>
+
+        <section class="card span2" id="card-voice-status">
+          <h2>语音引擎状态<span class="aside" id="voice-status-time"></span>
+            <span class="h2-tools">
+              <button type="button" class="h2-btn" id="btn-voice-reload">刷新</button>
+            </span>
+          </h2>
+          <div class="chips" id="voice-state-chips"></div>
+          <div class="stat-rows wide">
+            <div class="stat"><span>当前音色</span><b id="voice-character">--</b></div>
+            <div class="stat"><span>进程归属</span><b id="voice-ownership">--</b></div>
+            <div class="stat"><span>进程 PID</span><b id="voice-pid">--</b></div>
+            <div class="stat"><span>运行时长</span><b id="voice-uptime">--</b></div>
+            <div class="stat"><span>语音缓存</span><b id="voice-cache">--</b></div>
+            <div class="stat"><span>引擎地址</span><b id="voice-baseurl">--</b></div>
+          </div>
+          <p class="hint" id="voice-emo-hint">注册情绪：加载中…</p>
+          <div class="chips" id="voice-emo-chips"></div>
+          <div class="field" style="margin-top:12px">
+            <label for="voice-trigger-prob">语音触发概率
+              <b id="voice-trigger-prob-val">--</b>（每条回复带语音的概率，真实生效的旋钮）</label>
+            <div class="row-btns" style="align-items:center">
+              <input type="range" id="voice-trigger-prob" min="0" max="100" step="5"
+                     value="100" style="flex:1">
+              <button type="button" class="btn btn-sm" id="voice-trigger-prob-save">应用</button>
+            </div>
+            <p class="hint">运行时立即生效（下一条回复按新概率抽样），同时写回 vl.toml 重启不变；
+              0%=整条回复不带语音（纯文字），100%=每条都带（旧行为）。</p>
+          </div>
+          <p class="err" id="err-voice-trigger" hidden></p>
+          <p class="err" id="err-voice-status" hidden></p>
+        </section>
+
+        <section class="card" id="card-voice-preview">
+          <h2>试听</h2>
+          <textarea id="voice-preview-text" maxlength="200"
+                    placeholder="输入想让她说的话（≤200 字），选一个情绪试听"></textarea>
+          <p class="meta-line"><b id="voice-preview-count">0</b> / 200 字</p>
+          <div class="field" style="margin-top:6px">
+            <label for="voice-preview-emotion">情绪（只列引擎注册值）</label>
+            <select id="voice-preview-emotion" class="vsel" style="width:100%"></select>
+          </div>
+          <div class="row-btns" style="margin-top:12px">
+            <button type="button" class="btn" id="voice-preview-btn">合成并播放</button>
+          </div>
+          <audio id="voice-audio" controls hidden></audio>
+          <p class="preview-line" id="voice-preview-line" hidden></p>
+          <p class="err" id="err-voice-preview" hidden></p>
+        </section>
+
+        <section class="card" id="card-voice-power">
+          <h2>引擎启停</h2>
+          <div class="chips" id="voice-power-chips"></div>
+          <div class="row-btns">
+            <button type="button" class="btn" id="voice-btn-start">启动引擎</button>
+            <button type="button" class="btn btn-danger" id="voice-btn-stop">停止引擎</button>
+          </div>
+          <p class="hint" id="voice-power-hint"></p>
+          <p class="hint">语音引擎日志：<code id="voice-log-path">--</code></p>
+          <pre class="term" id="voice-log-tail">日志加载中…</pre>
+          <p class="err" id="err-voice-power" hidden></p>
+        </section>
+
+        <section class="card span2" id="card-voice-map">
+          <h2>情绪映射表
+            <span class="h2-tools">
+              <button type="button" class="h2-btn" id="voice-map-reset">恢复默认值</button>
+              <button type="button" class="h2-btn" id="btn-voice-map-reload">刷新</button>
+            </span>
+          </h2>
+          <div class="emo-rows" id="voice-map-rows"></div>
+          <div class="row-btns" style="margin-top:14px">
+            <button type="button" class="btn" id="voice-map-save">保存映射表</button>
+          </div>
+          <p class="hint">下拉只列引擎注册情绪（default 是「无情绪」兜底值，不列）；值未注册的行会标黄「联动不会生效」（语音引擎对未注册情绪静默按 default 演唱）。保存后立即热加载，无需重启。</p>
+          <p class="err" id="err-voice-map" hidden></p>
+        </section>
+      </section>
+
+      <footer>Virtual-lover Console · 本地管理控制台</footer>
+    </main>
+  </div>
+</div>
+
+<!-- ============ 服务管理确认弹层 ============ -->
+<div class="mask" id="confirm-mask" hidden>
+  <div class="modal" role="alertdialog" aria-labelledby="confirm-title">
+    <h3 id="confirm-title"></h3>
+    <p class="confirm-text" id="confirm-text"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="confirm-cancel">取消</button>
+      <button type="button" class="btn btn-danger" id="confirm-ok">确认执行</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+'use strict';
+/* ===================================================================
+ * Virtual-lover 管理控制台前端（单文件、零依赖、零外部请求）
+ * 设计语言与工具函数延续只读工作台 v1；所有动态文本一律
+ * textContent / 先转义再 innerHTML，绝不把接口数据未经转义地插入 DOM。
+ * =================================================================== */
+
+/* ---------- 端点常量（与后端契约逐字一致） ---------- */
+var EP_STATUS = '/api/status';
+var EP_RECENT_ERRORS = '/api/recent-errors';
+var EP_BRAIN_PING = '/api/brain/ping';
+var EP_BRAIN_STATUS = '/api/brain/status';   /* 智能降级观测（五轮修缮第二轮） */
+var EP_MOOD   = '/api/mood';
+var EP_DIARY  = '/api/diary';
+var EP_EVAL   = '/api/eval';
+var EP_AUTH_WHOAMI  = '/api/auth/whoami';
+var EP_AUTH_LOGIN   = '/api/auth/login';
+var EP_AUTH_LOGOUT  = '/api/auth/logout';
+var EP_CONTROL      = '/api/control/action';
+var EP_VOICE_STATUS    = '/api/voice/status';
+var EP_VOICE_PREVIEW   = '/api/voice/preview';
+var EP_VOICE_TRIGGER   = '/api/voice/trigger-probability';
+var EP_VOICE_START     = '/api/voice/start';
+var EP_VOICE_STOP      = '/api/voice/stop';
+var EP_VOICE_MAP       = '/api/voice/emotion-map';
+var EP_VOICE_FIX_URL   = '/api/voice/fix-base-url';
+var EP_CONFIG_CHAT      = '/api/config/chat';
+var EP_CONFIG_EMBEDDING = '/api/config/embedding';
+var EP_CONFIG_PERSONA   = '/api/config/persona';
+var EP_MEMORY_LIST = '/api/memory/list';
+var EP_HISTORY_LIST = '/api/history/list';   /* 对话回放（R9：只读分页） */
+var EP_MEMORIES = '/api/memories';           /* 我们的回忆页（只读聚合） */
+var NC_BASE = '/api/engine/gw/';   // R6 中性化（原 /api/engine/nc/）
+
+var REFRESH_SEC = 30;
+var FETCH_TIMEOUT_MS = 8000;      /* 常规请求超时 */
+var countdown = REFRESH_SEC;      /* 30s 自动刷新倒计时（loadStatus 完成后重置） */
+
+/* ---------- 通用工具（v1 原样沿用） ---------- */
+function el(id){ return document.getElementById(id); }
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function nowHMS(){
+  var d = new Date();
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+
+function showErr(id, msg){
+  var box = el(id);
+  box.textContent = '⚠ ' + msg;
+  box.hidden = false;
+}
+function clearErr(id){
+  var box = el(id);
+  box.hidden = true;
+  box.textContent = '';
+}
+
+function ApiError(message, status){
+  this.message = String(message);
+  this.status = status || 0;
+}
+
+/* ---------- fetch 封装（沿 v1：超时 + 错误提取；扩展方法/请求体/会话过期） ----------
+ * 约定：
+ * - 所有请求都带 X-Requested-With: XMLHttpRequest（写请求必需，读请求带上无害）；
+ * - HTTP 401 一律视为控制台会话过期 → 整页回到登录页（登录/whoami 自身除外）；
+ * - 上游错误按契约是 200 + {status:'error',message} 或 HTTP 502，由页面按业务展示。 */
+function request(url, opts){
+  opts = opts || {};
+  var init = {
+    method: opts.method || 'GET',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'same-origin'
+  };
+  if(opts.body !== undefined){
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(opts.body);
+  }
+  var timeoutMs = opts.timeoutMs || FETCH_TIMEOUT_MS;
+  var ctrl = new AbortController();
+  init.signal = ctrl.signal;
+  var timer = setTimeout(function(){ ctrl.abort(); }, timeoutMs);
+  return fetch(url, init).then(function(res){
+    return res.json().catch(function(){ return null; }).then(function(data){
+      if(res.status === 401){
+        if(!opts.skipAuthRedirect) onSessionExpired();
+        throw new ApiError((data && (data.message || data.error)) || '登录已过期', 401);
+      }
+      if(!res.ok){
+        throw new ApiError((data && (data.message || data.error)) || ('HTTP ' + res.status), res.status);
+      }
+      if(data === null) throw new ApiError('响应不是合法 JSON', 0);
+      return data;
+    });
+  }).finally(function(){ clearTimeout(timer); }).catch(function(err){
+    if(err && err.name === 'AbortError') throw new ApiError('请求超时（' + Math.round(timeoutMs / 1000) + 's）', 0);
+    throw err;
+  });
+}
+
+/* ---------- 引擎响应解包 ----------
+ * 协议端契约：{code:0|-1, data, message}，HTTP 恒 200，以 code 判成败。 */
+function ncData(json){
+  if(json && typeof json.code === 'number'){
+    if(json.code !== 0) throw new ApiError(json.message || ('协议端错误码 ' + json.code), 0);
+    return (json.data === undefined) ? {} : json.data;
+  }
+  return json;
+}
+function ncSend(path, body, opts){
+  return request(NC_BASE + path, Object.assign({ method: 'POST', body: body || {} }, opts || {})).then(ncData);
+}
+
+/* ---------- 相对时间 / 大小（v1 原样沿用） ---------- */
+function relTime(unix){
+  var t = Number(unix);
+  if(!isFinite(t) || t <= 0) return '—';
+  var diff = Math.max(0, Date.now() / 1000 - t);
+  if(diff < 60) return '刚刚';
+  if(diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+  if(diff < 172800) return Math.floor(diff / 3600) + ' 小时前';
+  return Math.floor(diff / 86400) + ' 天前';
+}
+function fmtSize(n){
+  var v = Number(n);
+  if(!isFinite(v) || v < 0) return '';
+  if(v < 1024) return v + ' B';
+  if(v < 1048576) return (v / 1024).toFixed(1) + ' KB';
+  return (v / 1048576).toFixed(1) + ' MB';
+}
+
+/* ---------- 迷你 markdown（v1 原样沿用：先转义后加标签） ---------- */
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function inlineMd(escaped){
+  return escaped.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+}
+var TS_LINE_RE = /^(\[\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(?::\d{2})?)?\]|\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(?::\d{2})?)?)/;
+
+function renderMd(text){
+  var lines = String(text).split(/\r\n|\r|\n/);
+  var out = [];
+  var para = [];
+  var inList = false;
+  function flushPara(){
+    if(para.length){
+      out.push('<p>' + para.map(inlineMd).join('<br>') + '</p>');
+      para = [];
+    }
+  }
+  function closeList(){
+    if(inList){ out.push('</ul>'); inList = false; }
+  }
+  lines.forEach(function(raw){
+    var line = escapeHtml(raw.replace(/\s+$/, ''));
+    var t = line.trim();
+    if(!t){ flushPara(); closeList(); return; }
+    var m = t.match(/^###\s+(.+)$/);
+    if(m){ flushPara(); closeList(); out.push('<h3>' + inlineMd(m[1]) + '</h3>'); return; }
+    m = t.match(/^##\s+(.+)$/);
+    if(m){ flushPara(); closeList(); out.push('<h2>' + inlineMd(m[1]) + '</h2>'); return; }
+    m = t.match(/^[-*]\s+(.+)$/);
+    if(m){
+      flushPara();
+      if(!inList){ out.push('<ul>'); inList = true; }
+      out.push('<li>' + inlineMd(m[1]) + '</li>');
+      return;
+    }
+    closeList();
+    para.push(line.replace(TS_LINE_RE, '<span class="ts">$1</span>'));
+  });
+  flushPara();
+  closeList();
+  return out.join('\n');
+}
+
+/* ---------- 统一空状态（v1 原样沿用） ---------- */
+function setEmpty(detailId, icon, title, sub){
+  var box = el(detailId);
+  box.textContent = '';
+  var wrap = document.createElement('div');
+  wrap.className = 'empty small';
+  var ico = document.createElement('div');
+  ico.className = 'ico';
+  ico.setAttribute('aria-hidden', 'true');
+  ico.textContent = icon;
+  var t = document.createElement('p');
+  t.textContent = title;
+  var s = document.createElement('p');
+  s.className = 'sub';
+  s.textContent = sub;
+  wrap.appendChild(ico); wrap.appendChild(t); wrap.appendChild(s);
+  box.appendChild(wrap);
+}
+
+/* ===================================================================
+ * 二维码编码器（内联零依赖实现）
+ * ==QR-ENCODER-BEGIN==
+ * 字节模式；纠错等级 M；版本 1..10 自动择小（可强制）；掩码 0..7 按标准
+ * 罚分自动挑选（可强制）。遵循 ISO/IEC 18004：GF(256) RS 纠错、功能图案、
+ * 格式/版本信息、Z 字放置、8 种掩码。已与 segno 参考实现逐位比对。
+ * =================================================================== */
+var QR = (function(){
+  /* ---- GF(256)，本原多项式 0x11d ---- */
+  var EXP = new Array(256), LOG = new Array(256);
+  (function(){
+    var x = 1;
+    for(var i = 0; i < 255; i++){
+      EXP[i] = x; LOG[x] = i;
+      x <<= 1;
+      if(x & 0x100) x ^= 0x11d;
+    }
+  })();
+  function gmul(a, b){ return (a === 0 || b === 0) ? 0 : EXP[(LOG[a] + LOG[b]) % 255]; }
+
+  /* ---- 等级 M 的 RS 块结构：[块数, 每块总码字, 每块数据码字] ---- */
+  var RS_M = [
+    [[1, 26, 16]],
+    [[1, 44, 28]],
+    [[1, 70, 44]],
+    [[2, 50, 32]],
+    [[2, 67, 43]],
+    [[4, 43, 27]],
+    [[4, 49, 31]],
+    [[2, 60, 38], [2, 61, 39]],
+    [[3, 58, 36], [2, 59, 37]],
+    [[4, 69, 43], [1, 70, 44]]
+  ];
+  /* 对齐图案中心（下标即版本号） */
+  var ALIGN = [null, null, [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+  var G15 = 0x537;        /* 10100110111 */
+  var G15_MASK = 0x5412;  /* 101010000010010 */
+  var G18 = 0x1F25;       /* 1111100100101 */
+
+  function bchDigit(data){ var d = 0; while(data !== 0){ d++; data >>>= 1; } return d; }
+  function bch15(data){
+    var d = data << 10;
+    while(bchDigit(d) - bchDigit(G15) >= 0) d ^= (G15 << (bchDigit(d) - bchDigit(G15)));
+    return ((data << 10) | d) ^ G15_MASK;
+  }
+  function bch18(data){
+    var d = data << 12;
+    while(bchDigit(d) - bchDigit(G18) >= 0) d ^= (G18 << (bchDigit(d) - bchDigit(G18)));
+    return (data << 12) | d;
+  }
+
+  /* ---- RS 生成多项式与纠错码字（系数 index 0 为最高次） ---- */
+  function rsGenPoly(n){
+    var poly = [1];
+    for(var i = 0; i < n; i++){
+      var next = [];
+      for(var j = 0; j < poly.length + 1; j++) next.push(0);
+      for(var j2 = 0; j2 < poly.length; j2++){
+        next[j2] ^= poly[j2];
+        next[j2 + 1] ^= gmul(poly[j2], EXP[i % 255]);
+      }
+      poly = next;
+    }
+    return poly;
+  }
+  function rsEncode(data, ecLen, gen){
+    var rest = data.slice();
+    for(var i = 0; i < ecLen; i++) rest.push(0);
+    /* 综合除法：步数 = 数据码字数（每步消掉一个首项），余数取末尾 ecLen 个 */
+    for(var i2 = 0; i2 < data.length; i2++){
+      var factor = rest[i2];
+      if(factor === 0) continue;
+      for(var j = 1; j < gen.length; j++) rest[i2 + j] ^= gmul(gen[j], factor);
+    }
+    return rest.slice(data.length);
+  }
+
+  /* ---- 位流 ---- */
+  function BitBuffer(){ this.buf = []; this.len = 0; }
+  BitBuffer.prototype.put = function(num, length){
+    for(var i = 0; i < length; i++) this.putBit(((num >>> (length - i - 1)) & 1) === 1);
+  };
+  BitBuffer.prototype.putBit = function(bit){
+    var idx = this.len >> 3;
+    if(this.buf.length <= idx) this.buf.push(0);
+    if(bit) this.buf[idx] |= (0x80 >>> (this.len & 7));
+    this.len++;
+  };
+
+  function utf8Bytes(str){
+    var out = [];
+    for(var i = 0; i < str.length; i++){
+      var c = str.codePointAt(i);
+      if(c > 0xffff) i++;               /* 代理对占两个 UTF-16 单元 */
+      if(c < 0x80) out.push(c);
+      else if(c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else if(c < 0x10000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    return out;
+  }
+
+  function maskFunc(mask, r, c){
+    switch(mask){
+      case 0: return (r + c) % 2 === 0;
+      case 1: return r % 2 === 0;
+      case 2: return c % 3 === 0;
+      case 3: return (r + c) % 3 === 0;
+      case 4: return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0;
+      case 5: return ((r * c) % 2) + ((r * c) % 3) === 0;
+      case 6: return (((r * c) % 2) + ((r * c) % 3)) % 2 === 0;
+      default: return (((r * c) % 3) + ((r + c) % 2)) % 2 === 0;
+    }
+  }
+
+  function blocksDataCap(blocks){
+    var s = 0;
+    blocks.forEach(function(b){ s += b[0] * b[2]; });
+    return s;
+  }
+
+  /* ---- 矩阵搭建：功能图案 → 预留 → 放数据（带掩码） → 写格式/版本信息 ---- */
+  function buildMatrix(version, codewords, mask){
+    var size = 17 + 4 * version;
+    var m = [], reserved = [], i, j;
+    for(i = 0; i < size; i++){
+      m.push([]); reserved.push([]);
+      for(j = 0; j < size; j++){ m[i].push(false); reserved[i].push(false); }
+    }
+
+    /* 定位图形 + 分隔符（越界部分自然跳过） */
+    function finder(row, col){
+      for(var r = -1; r <= 7; r++){
+        for(var c = -1; c <= 7; c++){
+          var rr = row + r, cc = col + c;
+          if(rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+          var dark = (r >= 0 && r <= 6 && (c === 0 || c === 6)) ||
+                     (c >= 0 && c <= 6 && (r === 0 || r === 6)) ||
+                     (r >= 2 && r <= 4 && c >= 2 && c <= 4);
+          m[rr][cc] = dark; reserved[rr][cc] = true;
+        }
+      }
+    }
+    finder(0, 0); finder(size - 7, 0); finder(0, size - 7);
+
+    /* 时序图案 */
+    for(i = 8; i < size - 8; i++){
+      if(!reserved[i][6]){ m[i][6] = (i % 2 === 0); reserved[i][6] = true; }
+      if(!reserved[6][i]){ m[6][i] = (i % 2 === 0); reserved[6][i] = true; }
+    }
+
+    /* 对齐图案（跳过与定位图形重叠的三个角） */
+    var centers = ALIGN[version];
+    if(centers){
+      for(var ai = 0; ai < centers.length; ai++){
+        for(var aj = 0; aj < centers.length; aj++){
+          var cr = centers[ai], cc2 = centers[aj];
+          if((cr === 6 && cc2 === 6) || (cr === 6 && cc2 === size - 7) || (cr === size - 7 && cc2 === 6)) continue;
+          for(var dr = -2; dr <= 2; dr++){
+            for(var dc = -2; dc <= 2; dc++){
+              var rr2 = cr + dr, ccc = cc2 + dc;
+              m[rr2][ccc] = Math.abs(dr) === 2 || Math.abs(dc) === 2 || (dr === 0 && dc === 0);
+              reserved[rr2][ccc] = true;
+            }
+          }
+        }
+      }
+    }
+
+    /* 格式信息 / 版本信息 / 暗模块占位 */
+    for(i = 0; i <= 5; i++) reserved[i][8] = true;
+    reserved[7][8] = true; reserved[8][8] = true;
+    for(i = 8; i < 15; i++) reserved[size - 15 + i][8] = true;
+    for(i = 0; i < 8; i++) reserved[8][size - 1 - i] = true;
+    reserved[8][7] = true;
+    for(i = 9; i < 15; i++) reserved[8][14 - i] = true;
+    reserved[size - 8][8] = true;
+    if(version >= 7){
+      for(i = 0; i < 18; i++){
+        reserved[Math.floor(i / 3)][i % 3 + size - 11] = true;
+        reserved[i % 3 + size - 11][Math.floor(i / 3)] = true;
+      }
+    }
+
+    /* 数据放置：右下角起 Z 字双列上行，跳过第 6 列（时序列） */
+    var byteIndex = 0, bitIndex = 7, inc = -1, row = size - 1;
+    for(var col = size - 1; col > 0; col -= 2){
+      if(col === 6) col--;
+      while(true){
+        for(var cc3 = 0; cc3 < 2; cc3++){
+          var cx = col - cc3;
+          if(!reserved[row][cx]){
+            var dark = false;
+            if(byteIndex < codewords.length) dark = ((codewords[byteIndex] >>> bitIndex) & 1) === 1;
+            if(maskFunc(mask, row, cx)) dark = !dark;
+            m[row][cx] = dark;
+            bitIndex--;
+            if(bitIndex === -1){ byteIndex++; bitIndex = 7; }
+          }
+        }
+        row += inc;
+        if(row < 0 || row >= size){ row -= inc; inc = -inc; break; }
+      }
+    }
+
+    /* 格式信息：EC 等级 M 指示位为 00，故 (0<<3)|mask = mask */
+    var fbits = bch15(mask), f, fdark;
+    for(f = 0; f < 15; f++){
+      fdark = ((fbits >> f) & 1) === 1;
+      if(f < 6) m[f][8] = fdark;
+      else if(f < 8) m[f + 1][8] = fdark;
+      else m[size - 15 + f][8] = fdark;
+    }
+    for(f = 0; f < 15; f++){
+      fdark = ((fbits >> f) & 1) === 1;
+      if(f < 8) m[8][size - 1 - f] = fdark;
+      else if(f < 9) m[8][15 - f] = fdark;
+      else m[8][14 - f] = fdark;
+    }
+    m[size - 8][8] = true;   /* 暗模块恒黑 */
+
+    if(version >= 7){
+      var vbits = bch18(version), v, vdark;
+      for(v = 0; v < 18; v++){
+        vdark = ((vbits >> v) & 1) === 1;
+        m[Math.floor(v / 3)][v % 3 + size - 11] = vdark;
+        m[v % 3 + size - 11][Math.floor(v / 3)] = vdark;
+      }
+    }
+    return m;
+  }
+
+  /* ---- 掩码罚分（N1 连线 / N2 方块 / N3 类定位图案 / N4 深色占比） ---- */
+  function maskPenalty(m, size){
+    var score = 0, r, c, k;
+    for(r = 0; r < size; r++){
+      var runR = 1, runC = 1;
+      for(c = 1; c < size; c++){
+        if(m[r][c] === m[r][c - 1]){ runR++; if(c === size - 1 && runR >= 5) score += 3 + (runR - 5); }
+        else { if(runR >= 5) score += 3 + (runR - 5); runR = 1; }
+        if(m[c][r] === m[c - 1][r]){ runC++; if(c === size - 1 && runC >= 5) score += 3 + (runC - 5); }
+        else { if(runC >= 5) score += 3 + (runC - 5); runC = 1; }
+      }
+    }
+    for(r = 0; r < size - 1; r++){
+      for(c = 0; c < size - 1; c++){
+        if(m[r][c] === m[r][c + 1] && m[r][c] === m[r + 1][c] && m[r][c] === m[r + 1][c + 1]) score += 3;
+      }
+    }
+    var pat1 = [true, false, true, true, true, false, true, false, false, false, false];
+    var pat2 = [false, false, false, false, true, false, true, true, true, false, true];
+    for(r = 0; r < size; r++){
+      for(c = 0; c <= size - 11; c++){
+        var ok1 = true, ok2 = true, ok3 = true, ok4 = true;
+        for(k = 0; k < 11; k++){
+          if(m[r][c + k] !== pat1[k]) ok1 = false;
+          if(m[r][c + k] !== pat2[k]) ok2 = false;
+          if(m[c + k][r] !== pat1[k]) ok3 = false;
+          if(m[c + k][r] !== pat2[k]) ok4 = false;
+        }
+        if(ok1) score += 40;
+        if(ok2) score += 40;
+        if(ok3) score += 40;
+        if(ok4) score += 40;
+      }
+    }
+    var dark = 0;
+    for(r = 0; r < size; r++) for(c = 0; c < size; c++) if(m[r][c]) dark++;
+    var pct = dark * 100 / (size * size);
+    score += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return score;
+  }
+
+  function encode(text, opts){
+    opts = opts || {};
+    var bytes = utf8Bytes(String(text));
+    var version;
+    if(opts.version){
+      version = opts.version;
+      if(version < 1 || version > 10) throw new Error('仅支持版本 1..10');
+    }else{
+      version = 0;
+      for(var v = 1; v <= 10; v++){
+        var cc = v < 10 ? 8 : 16;
+        if(4 + cc + bytes.length * 8 <= blocksDataCap(RS_M[v - 1]) * 8){ version = v; break; }
+      }
+      if(!version) throw new Error('内容过长：' + bytes.length + ' 字节超出等级 M 版本 10 容量（213 字节）');
+    }
+    var blocks = RS_M[version - 1];
+    var dataCap = blocksDataCap(blocks);
+    var ccBits = version < 10 ? 8 : 16;
+    if(4 + ccBits + bytes.length * 8 > dataCap * 8){
+      throw new Error('内容过长：版本 ' + version + '（等级 M）放不下 ' + bytes.length + ' 字节');
+    }
+
+    var bits = new BitBuffer();
+    bits.put(4, 4);                                    /* 字节模式 */
+    bits.put(bytes.length, ccBits);
+    for(var i = 0; i < bytes.length; i++) bits.put(bytes[i], 8);
+    var term = Math.min(4, dataCap * 8 - bits.len);    /* 终止符 */
+    bits.put(0, term);
+    while(bits.len % 8 !== 0) bits.putBit(false);      /* 对齐到字节 */
+    var pads = [0xEC, 0x11], pi = 0;
+    while(bits.buf.length < dataCap) bits.buf.push(pads[pi++ % 2]);
+
+    /* 分块求纠错、按标准交织 */
+    var ecLen = blocks[0][1] - blocks[0][2];
+    var gen = rsGenPoly(ecLen);
+    var chunks = [], offset = 0;
+    blocks.forEach(function(b){
+      for(var n = 0; n < b[0]; n++){
+        var dc = bits.buf.slice(offset, offset + b[2]);
+        chunks.push({ data: dc, ec: rsEncode(dc, ecLen, gen) });
+        offset += b[2];
+      }
+    });
+    var out = [];
+    var i2, i3;
+    /* 双组块时第二组每块多 1 个数据码字，上界取最后一组 */
+    for(i2 = 0; i2 < blocks[blocks.length - 1][2]; i2++){
+      chunks.forEach(function(ch){ if(i2 < ch.data.length) out.push(ch.data[i2]); });
+    }
+    for(i3 = 0; i3 < ecLen; i3++){
+      chunks.forEach(function(ch){ if(i3 < ch.ec.length) out.push(ch.ec[i3]); });
+    }
+    var totalCw = 0;
+    blocks.forEach(function(b){ totalCw += b[0] * b[1]; });
+    if(out.length !== totalCw) throw new Error('内部错误：码字数不符');
+
+    var masks = (opts.mask === undefined || opts.mask === null) ? [0, 1, 2, 3, 4, 5, 6, 7] : [opts.mask];
+    var best = null;
+    masks.forEach(function(mk){
+      var matrix = buildMatrix(version, out, mk);
+      var penalty = masks.length > 1 ? maskPenalty(matrix, 17 + 4 * version) : 0;
+      if(!best || penalty < best.penalty) best = { mask: mk, matrix: matrix, penalty: penalty };
+    });
+    var finalMatrix = best.matrix;
+    return {
+      size: 17 + 4 * version,
+      version: version,
+      mask: best.mask,
+      get: function(r, c){ return finalMatrix[r][c]; }
+    };
+  }
+
+  return { encode: encode };
+})();
+/* ==QR-ENCODER-END== */
+
+/* ===================================================================
+ * 登录 / 会话
+ * =================================================================== */
+var pollStarted = false;
+
+function showLoginView(msg){
+  stopAllTimers();
+  el('view-app').hidden = true;
+  el('view-login').hidden = false;
+  el('login-pwd').value = '';
+  if(msg) showErr('err-login', msg); else clearErr('err-login');
+}
+function enterApp(){
+  el('view-login').hidden = true;
+  el('view-app').hidden = false;
+  clearErr('err-login');
+  startPolling();
+  showPage('chat');
+  detectStandaloneMode();
+}
+/* 独立模式检测：vl 未跑时所有 API 503——给用户一条明路而非一堆红错 */
+function detectStandaloneMode(){
+  request(EP_STATUS, { timeoutMs: 5000 }).then(function(d){
+    /* 正常——移除横幅（如果有） */
+    var b = el('standalone-banner');
+    if(b) b.remove();
+  }).catch(function(err){
+    if(String(err.message).indexOf('503') >= 0 || String(err.message).indexOf('状态探测') >= 0){
+      var existing = el('standalone-banner');
+      if(existing) return;
+      var banner = document.createElement('div');
+      banner.id = 'standalone-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#f8d7da;color:#721c24;padding:12px 20px;text-align:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.1)';
+      banner.innerHTML = '';
+      var s = document.createElement('span');
+      s.textContent = '⚠ 控制台未连接到 vl 框架（vl 未启动或端口被占）——双击仓库根目录的「一键启动.bat」后刷新本页';
+      banner.appendChild(s);
+      document.body.appendChild(banner);
+    }
+  });
+}
+function onSessionExpired(){
+  showLoginView('会话已过期，请重新登录');
+}
+function stopAllTimers(){
+  qqStopPoll();
+  if(overviewTimer !== null){ clearInterval(overviewTimer); overviewTimer = null; pollStarted = false; }
+}
+
+/* 登录页密码提示（localhost 信任域：控制台仅绑 127.0.0.1，密码文件本就对同机进程可读） */
+(function(){
+  fetch('/api/auth/hint')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(!d || !d.password) return;
+      var hint = el('login-hint');
+      if(!hint) return;
+      hint.hidden = false;
+      hint.innerHTML = '';
+      var span = document.createElement('span');
+      span.textContent = '当前密码：';
+      var code = document.createElement('code');
+      code.textContent = d.password;
+      code.title = '点击填入';
+      code.addEventListener('click', function(){
+        var box = el('login-pwd');
+        box.value = d.password;
+        box.focus();
+      });
+      hint.appendChild(span);
+      hint.appendChild(code);
+    })
+    .catch(function(){ /* hint 端点不可用时不显示 */ });
+})();
+
+/* 登录表单 */
+el('login-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var pwd = el('login-pwd').value;
+  var btn = el('login-btn');
+  if(!pwd){ showErr('err-login', '请输入密码'); return; }
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  clearErr('err-login');
+  request(EP_AUTH_LOGIN, { method: 'POST', body: { password: pwd }, skipAuthRedirect: true, timeoutMs: 10000 })
+    .then(function(d){
+      if(d && (d.status === 'ok' || d.ok === true)) enterApp();
+      else throw new ApiError((d && (d.message || d.error)) || '登录失败', 0);
+    })
+    .catch(function(err){ showErr('err-login', '登录失败：' + err.message); })
+    .then(function(){
+      btn.disabled = false;
+      btn.textContent = '登 录';
+    });
+});
+
+/* 退出登录 */
+el('btn-logout').addEventListener('click', function(){
+  request(EP_AUTH_LOGOUT, { method: 'POST', skipAuthRedirect: true })
+    .catch(function(){ /* 退出失败也回登录页，本地不再持有任何态 */ })
+    .then(function(){ showLoginView('已退出登录'); });
+});
+
+/* ===================================================================
+ * 页面切换
+ * =================================================================== */
+var PAGES = {
+  overview: { title: '总览', onShow: function(){
+    loadStatus();
+    loadMood(null);
+    loadRecentEvents();
+  } },
+  chat:     { title: '和她聊天', onShow: chatEnter },
+  'qq-ops': { title: 'QQ 运营', onShow: function(){ loadQqOps(); } },
+  qq:       { title: 'QQ 登录', onShow: qqEnter },
+  engine:   { title: '引擎与人格', onShow: function(){
+    engineEnter();
+    loadPersona();
+  } },
+  memory:   { title: '记忆与日记', onShow: function(){
+    loadDiary(true);
+    loadEval(true);
+    memoryEnter();
+    historyEnter();
+  } },
+  memories: { title: '我们的回忆', onShow: function(){ memoriesEnter(); } },
+  control:  { title: '服务管理', onShow: function(){ loadGpuStatus(); loadPaths(); } },
+  voice:    { title: '语音', onShow: voiceEnter }
+};
+var currentPage = null;
+var navBtns = Array.prototype.slice.call(document.querySelectorAll('.sidenav button'));
+
+function showPage(name){
+  if(currentPage === 'qq' && name !== 'qq') qqStopPoll();
+  currentPage = name;
+  document.querySelectorAll('.page').forEach(function(sec){
+    sec.hidden = (sec.id !== 'page-' + name);
+  });
+  navBtns.forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-page') === name);
+  });
+  el('page-title').textContent = PAGES[name].title;
+  PAGES[name].onShow();
+}
+navBtns.forEach(function(b){
+  b.addEventListener('click', function(){ showPage(b.getAttribute('data-page')); });
+});
+
+/* ===================================================================
+ * 总览页（v1 逻辑原样沿用）
+ * =================================================================== */
+function renderStatus(data){
+  clearErr('err-services');
+  var grid = el('svc-grid');
+  grid.textContent = '';
+  var svcs = (data && Array.isArray(data.services)) ? data.services : [];
+  /* 分组渲染：首屏只留用户关心的 4 项，技术明细收进折叠区 */
+  var IMPORTANT = ['napcat', 'brain', 'voice', 'bridge'];
+  var main = svcs.filter(function(s){ return IMPORTANT.indexOf(s.key) >= 0; });
+  var tech = svcs.filter(function(s){ return IMPORTANT.indexOf(s.key) < 0; });
+  function renderSvc(s, target){
+    var ok = !!s.ok;
+    var degraded = !!s.degraded;
+    var card = document.createElement('div');
+    card.className = 'svc';
+    var row = document.createElement('div');
+    row.className = 'row';
+    var dot = document.createElement('span');
+    dot.className = 'dot ' + (ok ? (degraded ? 'warn' : 'ok') : (s.optional ? 'opt' : 'bad'));
+    var name = document.createElement('span');
+    name.className = 'svc-name';
+    name.textContent = String(s.name || s.key || '');
+    name.title = name.textContent;
+    row.appendChild(dot);
+    row.appendChild(name);
+    var state = document.createElement('span');
+    var ms = Number(s.ms);
+    if(ok && degraded){
+      state.className = 'ms warn';
+      state.textContent = String(s.note || '最近调用失败');
+      state.title = state.textContent;
+    }else if(ok){
+      state.className = 'ms';
+      state.textContent = (isFinite(ms) && ms > 0) ? ms + ' ms' : '正常';
+    }else if(s.optional){
+      state.className = 'ms opt';
+      state.textContent = '未启动';
+    }else{
+      state.className = 'ms bad';
+      state.textContent = '失败';
+    }
+    card.appendChild(row);
+    card.appendChild(state);
+    target.appendChild(card);
+  }
+  main.forEach(function(s){ renderSvc(s, grid); });
+  if(tech.length){
+    var details = document.createElement('details');
+    details.style.cssText = 'grid-column:1/-1;margin-top:4px';
+    var summary = document.createElement('summary');
+    summary.style.cssText = 'font-size:12px;color:var(--faint);cursor:pointer;padding:4px 0;user-select:none';
+    summary.textContent = '▸ 技术模块明细（' + tech.length + ' 项）';
+    details.appendChild(summary);
+    var techGrid = document.createElement('div');
+    techGrid.className = 'svc-grid';
+    techGrid.style.marginTop = '8px';
+    details.appendChild(techGrid);
+    tech.forEach(function(s){ renderSvc(s, techGrid); });
+    grid.appendChild(details);
+  }
+  renderCounterChips(data && data.counters);
+  if(data && data.generated_at){
+    var t = new Date(Number(data.generated_at) * 1000);
+    if(!isNaN(t.getTime())){
+      el('status-time').textContent =
+        pad2(t.getHours()) + ':' + pad2(t.getMinutes()) + ':' + pad2(t.getSeconds()) + ' 探测';
+    }
+  }
+}
+/* ---------- 计数器 chips（R2）：打断 N 轮 / 语音降级 N 次 / LLM 失败 N 次 ----------
+ * 非零才亮（契约）；自进程启动起累计（counters.since 提示起点）。 */
+function renderCounterChips(counters){
+  var box = el('svc-tail');
+  if(!box) return;
+  box.textContent = '';
+  var c = counters || {};
+  var sinceTxt = '';
+  var since = Number(c.since);
+  if(isFinite(since) && since > 0){
+    var sd = new Date(since * 1000);
+    sinceTxt = ' 自 ' + pad2(sd.getHours()) + ':' + pad2(sd.getMinutes()) + ' 起';
+  }
+  var defs = [
+    { n: Number(c.interrupt),        txt: '打断 ' + Math.max(0, c.interrupt|0) + ' 轮',     cls: 'chip' },
+    { n: Number(c.voice_degraded),   txt: '语音降级 ' + Math.max(0, c.voice_degraded|0) + ' 次', cls: 'chip alert' },
+    { n: Number(c.llm_fail),         txt: 'LLM 失败 ' + Math.max(0, c.llm_fail|0) + ' 次',  cls: 'chip alert-bad' }
+  ];
+  var lit = false;
+  defs.forEach(function(d){
+    if(!(isFinite(d.n) && d.n > 0)) return;   /* 非零才亮 */
+    lit = true;
+    var chip = document.createElement('span');
+    chip.className = d.cls;
+    chip.textContent = d.txt + sinceTxt;
+    box.appendChild(chip);
+    sinceTxt = '';   /* 起点只标注一次 */
+  });
+  box.hidden = !lit;
+}
+/* 首次加载占位（刷新不重画，避免闪烁）：探测中… */
+function renderSvcLoading(){
+  var grid = el('svc-grid');
+  if(grid.childNodes.length) return;
+  var card = document.createElement('div');
+  card.className = 'svc';
+  card.textContent = '探测中…';
+  grid.appendChild(card);
+}
+function loadStatus(){
+  /* 服务端串行探测各服务（含 brain 行探活），最坏可达数十秒，超时须留足余量 */
+  renderSvcLoading();
+  return request(EP_STATUS, { timeoutMs: 30000 }).then(renderStatus).catch(function(err){
+    showErr('err-services', '服务状态获取失败：' + err.message);
+  }).then(function(){ countdown = REFRESH_SEC; });
+}
+
+/* ---------- 最近事件卡（R2）：时间/级别/单行，最新在前 ---------- */
+function loadRecentEvents(){
+  return request(EP_RECENT_ERRORS, { timeoutMs: 8000 }).then(function(data){
+    clearErr('err-events');
+    var list = el('evt-list');
+    var empty = el('evt-empty');
+    var srcNote = el('evt-src-note');
+    list.textContent = '';
+    var events = (data && Array.isArray(data.events)) ? data.events : [];
+    empty.hidden = events.length > 0;
+    if(srcNote){
+      srcNote.textContent = (data && data.source === 'log')
+        ? '来自 vl.log 尾部（本进程刚启动）'
+        : (events.length ? '本进程启动以来' : '');
+    }
+    events.forEach(function(e){
+      var li = document.createElement('li');
+      if(String(e.level) === 'ERROR' || String(e.level) === 'CRITICAL'){
+        li.className = 'evt-error';
+      }
+      var time = document.createElement('span');
+      time.className = 'evt-time';
+      var t = new Date(Number(e.ts) * 1000);
+      time.textContent = isNaN(t.getTime()) ? '--:--:--'
+        : pad2(t.getHours()) + ':' + pad2(t.getMinutes()) + ':' + pad2(t.getSeconds());
+      var level = document.createElement('span');
+      level.className = 'evt-level lv-' + String(e.level || 'INFO');
+      level.textContent = String(e.level || 'INFO');
+      var line = document.createElement('span');
+      line.className = 'evt-line';
+      line.textContent = String(e.line || '');
+      line.title = line.textContent;
+      li.appendChild(time);
+      li.appendChild(level);
+      li.appendChild(line);
+      list.appendChild(li);
+    });
+  }).catch(function(err){
+    showErr('err-events', '最近事件获取失败：' + err.message);
+  });
+}
+
+/* ---------- 她的内心卡（v1 原样沿用） ---------- */
+var moodData = null;
+var ARC_LEN = Math.PI * 92;
+var LEVEL_ARC = {
+  cold: '#8fa3bf',
+  neutral: '#6c9bf5',
+  close: '#ff8fab',
+  devoted: 'url(#grad-devoted)'
+};
+var moodUsers = [];
+var moodOrder = [];
+var moodSelPos = 0;   /* 记住当前选中：切换她后刷新不跳回第一位（keepPos） */
+var gaugeAnim = null;
+
+function setGaugeArc(pct, level){
+  var p = Math.max(0, Math.min(100, isFinite(pct) ? pct : 0));
+  var arc = el('arc-progress');
+  arc.style.strokeDashoffset = String(ARC_LEN * (1 - p / 100));
+  arc.style.stroke = LEVEL_ARC[level] || LEVEL_ARC.neutral;
+}
+function animateNumber(target){
+  var num = el('affection-num');
+  var from = parseFloat(num.dataset.v || '0');
+  if(!isFinite(from)) from = 0;
+  if(gaugeAnim) cancelAnimationFrame(gaugeAnim);
+  var start = performance.now();
+  var dur = 700;
+  function step(now){
+    var k = Math.min(1, (now - start) / dur);
+    var eased = 1 - Math.pow(1 - k, 3);
+    var v = from + (target - from) * eased;
+    num.textContent = v.toFixed(1);
+    if(k < 1){
+      gaugeAnim = requestAnimationFrame(step);
+    }else{
+      num.dataset.v = String(target);
+      gaugeAnim = null;
+    }
+  }
+  gaugeAnim = requestAnimationFrame(step);
+}
+function renderMoodUser(u){
+  var pct = Number(u.affection);
+  animateNumber(isFinite(pct) ? pct : 0);
+  setGaugeArc(pct, u.level);
+  el('level-zh').textContent = String(u.level_zh || '');
+  var chips = el('mood-chips');
+  chips.textContent = '';
+  var chipMood = document.createElement('span');
+  chipMood.className = 'chip mood-' + String(u.mood || 'calm');
+  chipMood.textContent = String(u.mood_zh || u.mood || '');
+  var chipInt = document.createElement('span');
+  chipInt.className = 'chip intensity';
+  chipInt.textContent = String(u.intensity_label || '');
+  chips.appendChild(chipMood);
+  chips.appendChild(chipInt);
+  el('st-streak').textContent = String(u.streak != null ? u.streak : 0) + ' 天';
+  el('st-total').textContent = String(u.total_messages != null ? u.total_messages : 0) + ' 条';
+  el('st-last').textContent = relTime(u.last_interaction);
+}
+function renderMood(keepPos){
+  clearErr('err-mood');
+  el('mood-loading').hidden = true;
+  var main = el('mood-main');
+  var empty = el('mood-empty');
+  var switcher = el('user-switch');
+  var hasData = !!(moodData && moodData.file_found && Array.isArray(moodData.users) && moodData.users.length);
+  if(!hasData){
+    main.hidden = true;
+    switcher.hidden = true;
+    empty.hidden = false;
+    return;
+  }
+  moodUsers = moodData.users;
+  moodOrder = moodUsers.map(function(_, i){ return i; }).sort(function(a, b){
+    return (Number(moodUsers[b].last_interaction) || 0) - (Number(moodUsers[a].last_interaction) || 0);
+  });
+  empty.hidden = true;
+  main.hidden = moodOrder.length === 0;
+  switcher.hidden = moodOrder.length < 2;
+  var sel = el('user-select');
+  sel.textContent = '';
+  moodOrder.forEach(function(ui, pos){
+    var u = moodUsers[ui];
+    var opt = document.createElement('option');
+    opt.value = String(pos);
+    opt.textContent = String(u.id || '未知用户') + ' · ' + String(u.level_zh || u.level || '');
+    sel.appendChild(opt);
+  });
+  var pos = (typeof keepPos === 'number' && keepPos >= 0 && keepPos < moodOrder.length)
+    ? keepPos
+    : Math.min(moodSelPos, moodOrder.length - 1);   /* 刷新时保持当前选中 */
+  moodSelPos = pos;
+  sel.value = String(pos);
+  if(moodOrder.length) renderMoodUser(moodUsers[moodOrder[pos]]);
+}
+/* 切换她：change 联动 renderMoodUser（v1 该下拉无监听，纯摆设——第一轮修缮接上） */
+el('user-select').addEventListener('change', function(){
+  var pos = parseInt(this.value, 10);
+  if(!isFinite(pos) || pos < 0 || pos >= moodOrder.length) return;
+  moodSelPos = pos;
+  renderMoodUser(moodUsers[moodOrder[pos]]);
+});
+function loadMood(keepPos){
+  /* 首次尚无数据时给「探测中…」占位（有数据后的刷新静默，不闪） */
+  if(!moodData){
+    el('mood-main').hidden = true;
+    el('mood-empty').hidden = true;
+    el('mood-loading').hidden = false;
+  }
+  return request(EP_MOOD).then(function(data){
+    moodData = data;
+    renderMood(keepPos);
+  }).catch(function(err){
+    el('mood-loading').hidden = true;
+    showErr('err-mood', '内心状态加载失败：' + err.message);
+  });
+}
+
+/* ---------- 日记 / 评测（v1 原样沿用） ---------- */
+var diaryItems = [];
+function renderList(ulId, items, activeIdx, labelOf, subOf, onPick){
+  var ul = el(ulId);
+  ul.textContent = '';
+  items.forEach(function(it, i){
+    var li = document.createElement('li');
+    if(i === activeIdx) li.className = 'active';
+    var main = document.createElement('span');
+    main.className = 'li-main';
+    main.textContent = labelOf(it);
+    main.title = labelOf(it);
+    var sub = document.createElement('span');
+    sub.className = 'li-sub';
+    sub.textContent = subOf(it);
+    li.appendChild(main);
+    li.appendChild(sub);
+    li.tabIndex = 0;
+    li.addEventListener('click', function(){ onPick(i); });
+    li.addEventListener('keydown', function(ev){
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); onPick(i); }
+    });
+    ul.appendChild(li);
+  });
+}
+/* 列表首次加载占位（刷新不重画） */
+function renderListLoading(ulId){
+  var ul = el(ulId);
+  if(ul.childNodes.length) return;
+  var li = document.createElement('li');
+  li.textContent = '探测中…';
+  ul.appendChild(li);
+}
+function loadDiary(pickLatest){
+  renderListLoading('diary-list');
+  return request(EP_DIARY).then(function(data){
+    diaryItems = (data && Array.isArray(data.items)) ? data.items : [];
+    renderList('diary-list', diaryItems, -1,
+      function(it){ return String(it.date || ''); },
+      function(it){ return fmtSize(it.size); },
+      pickDiary);
+    if(pickLatest && diaryItems.length){
+      pickDiary(0);                      /* 契约：items 已按日期倒序，首项即最新 */
+    }else if(!diaryItems.length){
+      setEmpty('diary-detail', '📖', '还没有日记', '她每晚写好的日记会出现在这里');
+    }
+    clearErr('err-diary');
+  }).catch(function(err){
+    showErr('err-diary', '日记列表加载失败：' + err.message);
+  });
+}
+function pickDiary(i){
+  var it = diaryItems[i];
+  if(!it) return;
+  renderList('diary-list', diaryItems, i,
+    function(d){ return String(d.date || ''); },
+    function(d){ return fmtSize(d.size); },
+    pickDiary);
+  var detail = el('diary-detail');
+  detail.textContent = '加载中…';
+  request(EP_DIARY + '/' + encodeURIComponent(String(it.date))).then(function(data){
+    detail.innerHTML = renderMd(String((data && data.content) || ''));   /* renderMd 先转义后加标签 */
+  }).catch(function(err){
+    detail.textContent = '';
+    showErr('err-diary', '日记 ' + String(it.date) + ' 加载失败：' + err.message);
+  });
+}
+
+var evalItems = [];
+function loadEval(pickLatest){
+  renderListLoading('eval-list');
+  return request(EP_EVAL).then(function(data){
+    evalItems = (data && Array.isArray(data.items)) ? data.items : [];
+    renderList('eval-list', evalItems, -1,
+      function(it){ return String(it.name || ''); },
+      function(it){ return fmtSize(it.size); },
+      pickEval);
+    if(pickLatest && evalItems.length){
+      pickEval(0);                       /* 契约：items 已按名倒序，首项即最新 */
+    }else if(!evalItems.length){
+      setEmpty('eval-detail', '📋', '还没有评测报告', '在 QQ 里发送 /eval 跑一次记忆体检');
+    }
+    clearErr('err-eval');
+  }).catch(function(err){
+    showErr('err-eval', '评测列表加载失败：' + err.message);
+  });
+}
+function pickEval(i){
+  var it = evalItems[i];
+  if(!it) return;
+  renderList('eval-list', evalItems, i,
+    function(d){ return String(d.name || ''); },
+    function(d){ return fmtSize(d.size); },
+    pickEval);
+  var detail = el('eval-detail');
+  detail.textContent = '加载中…';
+  request(EP_EVAL + '/' + encodeURIComponent(String(it.name))).then(function(data){
+    /* 评测报告保留表格对齐：textContent + CSS pre-wrap，不做任何 HTML 处理 */
+    detail.textContent = String((data && data.content) || '');
+  }).catch(function(err){
+    detail.textContent = '';
+    showErr('err-eval', '报告 ' + String(it.name) + ' 加载失败：' + err.message);
+  });
+}
+
+/* ---------- 30s 自动刷新（v1：轮询 /api/status，进入主界面后启动一次） ---------- */
+var overviewTimer = null;
+function paintRing(){
+  var deg = Math.round((REFRESH_SEC - Math.max(0, countdown)) / REFRESH_SEC * 360);
+  el('refresh-ring').style.background =
+    'conic-gradient(#ff8fab ' + deg + 'deg, #f0e6f2 ' + deg + 'deg)';
+}
+function startPolling(){
+  if(pollStarted) return;
+  pollStarted = true;
+  overviewTimer = setInterval(function(){
+    countdown -= 1;
+    if(countdown <= 0){
+      loadStatus();                        /* 成功/失败都会把 countdown 重置回 30 */
+      if(currentPage === 'overview') loadRecentEvents();   /* 最近事件随轮询同刷 */
+      if(currentPage === 'engine') loadBrainDegrade();     /* 降级面板随轮询同刷（黏性横幅 30s 内亮出） */
+    }
+    el('refresh-count').textContent = String(Math.max(0, countdown));
+    paintRing();
+  }, 1000);
+}
+
+/* ===================================================================
+ * QQ 登录页
+ * =================================================================== */
+var qq = { timer: null, qrcode: '', online: false };
+
+
+/* ============ QQ 运营页 ============ */
+function loadQqOps(){
+  /* 连接详情 */
+  request('/api/qq/stats', { timeoutMs: 10000 }).then(function(d){
+    el('qq-conn-state').textContent = d.connected ? '✓ 在线' : '✗ 离线';
+    el('qq-conn-state').style.color = d.connected ? '#34c98e' : '#ff6b81';
+    el('qq-msg-today').textContent = d.today_messages + ' 条';
+    el('qq-msg-total').textContent = d.total_messages + ' 条';
+    el('qq-proactive-state').textContent = d.proactive_state;
+    el('qq-proactive-next').textContent = d.proactive_next;
+  }).catch(function(){
+    el('qq-conn-state').textContent = '检测失败';
+  });
+
+  /* 消息流 */
+  loadQqStream();
+}
+
+function loadQqStream(){
+  request('/api/qq/stream', { timeoutMs: 10000 }).then(function(d){
+    var list = el('qq-stream-list');
+    list.textContent = '';
+    if(!d.items || !d.items.length){
+      var p = document.createElement('p');
+      p.className = 'hint';
+      p.textContent = '还没有消息记录';
+      list.appendChild(p);
+      return;
+    }
+    var lastDate = '';
+    d.items.forEach(function(m){
+      /* 日期分组：跨天显示分隔条 */
+      var msgDate = (m.time || '').split(' ')[0];
+      if(msgDate && msgDate !== lastDate){
+        lastDate = msgDate;
+        var sep = document.createElement('div');
+        sep.style.cssText = 'text-align:center;font-size:11px;color:var(--faint);padding:8px 0;border-bottom:1px dashed #ececf3';
+        sep.textContent = '—— ' + msgDate + ' ——';
+        list.appendChild(sep);
+      }
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:6px 10px;border-radius:8px;background:' +
+        (m.role === 'user' ? '#f6f0fa' : '#f0f5f0');
+      var time = document.createElement('span');
+      time.style.cssText = 'font-size:11px;color:var(--faint);font-family:var(--mono);flex:none;margin-top:2px';
+      time.textContent = m.time;
+      var role = document.createElement('span');
+      role.style.cssText = 'font-size:12px;font-weight:600;flex:none;color:' +
+        (m.role === 'user' ? '#7c5fd3' : '#34c98e');
+      role.textContent = m.role === 'user' ? '我' : '她';
+      var text = document.createElement('span');
+      text.style.cssText = 'font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+      text.textContent = m.content;
+      text.title = m.content;
+      row.appendChild(time);
+      row.appendChild(role);
+      row.appendChild(text);
+      list.appendChild(row);
+    });
+  }).catch(function(){
+    el('qq-stream-list').textContent = '';
+    var p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = '消息流加载失败（vl 未启动？）';
+    el('qq-stream-list').appendChild(p);
+  });
+}
+
+/* 手动刷新 */
+el('btn-qq-stream-refresh') && el('btn-qq-stream-refresh').addEventListener('click', loadQqStream);
+
+/* 主动消息触发 */
+el('btn-proactive-trigger') && el('btn-proactive-trigger').addEventListener('click', function(){
+  var b = this; b.disabled = true; b.textContent = '触发中…';
+  request('/api/control/action', { method: 'POST', body: { action: 'proactive_trigger' }, timeoutMs: 60000 })
+    .then(function(d){ toast('主动消息已触发——她会在 QQ 上发来消息'); })
+    .catch(function(e){ toast('触发失败：' + e.message); })
+    .then(function(){ b.disabled = false; b.textContent = '立即触发一次主动消息'; loadQqOps(); });
+});
+
+/* 测试消息 */
+el('btn-qq-test-send') && el('btn-qq-test-send').addEventListener('click', function(){
+  var input = el('qq-test-input');
+  var text = input.value.trim();
+  if(!text) return;
+  runQqTest(text);
+});
+el('qq-test-input') && el('qq-test-input').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){
+    var text = this.value.trim();
+    if(text) runQqTest(text);
+  }
+});
+/* 快捷测试按钮 */
+document.querySelectorAll('[data-test-msg]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    el('qq-test-input').value = this.getAttribute('data-test-msg');
+    runQqTest(this.getAttribute('data-test-msg'));
+  });
+});
+
+function runQqTest(text){
+  var result = el('qq-test-result');
+  result.style.display = 'block';
+  result.textContent = '⏳ 处理中（人格→记忆→情绪→LLM）…';
+  request('/api/brain/chat', {
+    method: 'POST', body: { message: text }, timeoutMs: 130000
+  }).then(function(d){
+    if(d && d.ok){
+      result.textContent = '';
+      var lines = [
+        '输入: ' + chatDisplayText(text),
+        '引擎: ' + (d.provider_id || '?') + ' (' + (d.ms || 0) + 'ms)',
+        '',
+        '回复:',
+        d.reply || '(空)'
+      ];
+      result.textContent = lines.join(String.fromCharCode(10));
+    } else {
+      result.textContent = '❌ ' + ((d && d.error) || '未知错误');
+    }
+  }).catch(function(e){
+    result.textContent = '❌ ' + e.message;
+  });
+}
+
+/* 10s 自动刷新消息流（仅当在 QQ 运营页时） */
+setInterval(function(){
+  if(currentPage === 'qq-ops') loadQqStream();
+}, 10000);
+
+/* 和她聊天页 */
+var chatHistory = [];
+function chatEnter(){
+  el('chat-input').focus();
+  /* 显示当前引擎 */
+  request('/api/brain/status', { timeoutMs: 5000 }).then(function(d){
+    var p = el('chat-provider');
+    if(d.fallback_enabled && d.sticky_local){ p.textContent = '本地大脑'; }
+    else if(d.mode === 'local'){ p.textContent = '本地大脑'; }
+    else { p.textContent = '云端'; }
+  }).catch(function(){});
+}
+function chatDisplayText(t){
+  /* 多模态：粘贴的图片 base64 / data URI 折叠成占位，避免气泡被刷屏 */
+  var s = String(t || '')
+    .replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g, '[图片数据]')
+    .replace(/[A-Za-z0-9+/=]{256,}/g, '[图片数据]');
+  return s.length > 2000 ? s.slice(0, 2000) + '…' : s;
+}
+function chatBubble(role, text, ms, tags){
+  var wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;max-width:75%;' +
+    (role === 'user' ? 'align-self:flex-end;align-items:flex-end' : 'align-self:flex-start');
+  var bubble = document.createElement('div');
+  bubble.style.cssText = 'padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;' +
+    (role === 'user'
+      ? 'background:linear-gradient(135deg,#ff8fab,#a78bfa);color:#fff;border-bottom-right-radius:4px'
+      : 'background:#f6f2fa;color:#3a3a4a;border-bottom-left-radius:4px');
+  bubble.textContent = text;
+  if(tags && tags.length){
+    tags.forEach(function(tag){
+      var chip = document.createElement('span');
+      chip.style.cssText = 'display:inline-block;margin:4px 4px 0 0;padding:3px 10px;border-radius:8px;background:#fff0f4;border:1px solid #ffd6de;font-size:12px;color:#c2648b';
+      chip.textContent = '[表情: ' + tag + ']';
+      bubble.appendChild(document.createElement('br'));
+      bubble.appendChild(chip);
+    });
+  }
+  wrap.appendChild(bubble);
+  if(ms){
+    var t = document.createElement('span');
+    t.style.cssText = 'font-size:11px;color:var(--faint);margin-top:3px;font-family:var(--mono)';
+    t.textContent = (ms / 1000).toFixed(1) + 's';
+    wrap.appendChild(t);
+  }
+  el('chat-messages').appendChild(wrap);
+  el('chat-messages').scrollTop = el('chat-messages').scrollHeight;
+}
+function chatThinking(){
+  var d = document.createElement('div');
+  d.id = 'chat-typing';
+  d.style.cssText = 'align-self:flex-start;padding:10px 14px;border-radius:14px;background:#f0ecf4;font-size:13px;color:var(--muted)';
+  d.textContent = '她正在想…';
+  el('chat-messages').appendChild(d);
+  el('chat-messages').scrollTop = el('chat-messages').scrollHeight;
+}
+function chatRemoveThinking(){
+  var d = el('chat-typing');
+  if(d) d.remove();
+}
+el('chat-msg-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var input = el('chat-input');
+  var text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  var btn = el('chat-send');
+  btn.disabled = true; btn.textContent = '…';
+  clearErr('err-chat');
+  chatBubble('user', chatDisplayText(text));
+  chatThinking();
+  request('/api/brain/chat', {
+    method: 'POST', body: { message: text }, skipAuthRedirect: true, timeoutMs: 130000
+  }).then(function(d){
+    chatRemoveThinking();
+    if(d && d.ok && d.reply){
+      chatBubble('assistant', d.reply, d.ms, d.meme_tags);
+    } else {
+      var msg = (d && d.error) || '她没能回复（引擎可能未就绪）';
+      chatBubble('assistant', '（' + msg + '）');
+      showErr('err-chat', msg);
+    }
+  }).catch(function(err){
+    chatRemoveThinking();
+    chatBubble('assistant', '（连接失败：' + err.message + '）');
+    showErr('err-chat', '发送失败：' + err.message);
+  }).then(function(){
+    btn.disabled = false; btn.textContent = '发送'; input.focus();
+  });
+});
+
+function qqEnter(){
+  clearErr('err-qq'); clearErr('err-quick');
+  qq.online = false;
+  el('qq-online').hidden = true;
+  el('qq-main').hidden = false;
+  el('qq-state-chip').textContent = '';
+  setQrBoxMessage('正在获取二维码…');
+  qqLoadQrcode();
+  qqLoadQuick();
+}
+function qqStopPoll(){
+  if(qq.timer !== null){ clearInterval(qq.timer); qq.timer = null; }
+}
+function setQrBoxMessage(msg){
+  var box = el('qr-box');
+  box.textContent = '';
+  var p = document.createElement('span');
+  p.className = 'placeholder';
+  p.textContent = msg;
+  box.appendChild(p);
+}
+function drawQr(text){
+  var box = el('qr-box');
+  box.textContent = '';
+  try{
+    var qr = QR.encode(text);
+    var quiet = 4, total = qr.size + quiet * 2;
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + total + ' ' + total);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'QQ 登录二维码');
+    var path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('fill', '#3a3a4a');
+    path.setAttribute('shape-rendering', 'crispEdges');
+    path.setAttribute('d', qrSvgPath(qr, quiet));
+    svg.appendChild(path);
+    box.appendChild(svg);
+  }catch(err){
+    setQrBoxMessage('二维码编码失败：' + err.message);
+  }
+}
+/* 行程游程压缩：每个深色横段一段 path，图案紧凑且不依赖任何库 */
+function qrSvgPath(qr, quiet){
+  var d = '';
+  for(var r = 0; r < qr.size; r++){
+    var c = 0;
+    while(c < qr.size){
+      if(qr.get(r, c)){
+        var run = 1;
+        while(c + run < qr.size && qr.get(r, c + run)) run++;
+        d += 'M' + (c + quiet) + ',' + (r + quiet) + 'h' + run + 'v1h-' + run + 'z';
+        c += run;
+      }else{
+        c++;
+      }
+    }
+  }
+  return d;
+}
+function qqLoadQrcode(){
+  setQrBoxMessage('正在获取二维码…');
+  el('qr-link').textContent = '';
+  clearErr('err-qq');
+  /* 契约结论：data.qrcode 是待编码成二维码的登录链接字符串，不是图片地址，
+   * 必须由前端编码绘制，绝不能 <img src>。 */
+  ncSend('QQLogin/GetQQLoginQrcode', {}, { timeoutMs: 10000 }).then(function(d){
+    var url = (d && d.qrcode) ? String(d.qrcode) : '';
+    if(!url) throw new ApiError('上游未返回 qrcode 字段', 0);
+    qq.qrcode = url;
+    drawQr(url);
+    el('qr-link').textContent = url;   /* 降级：始终给出链接原文 + 复制按钮 */
+    qqStartPoll();
+  }).catch(function(err){
+    setQrBoxMessage('二维码获取失败');
+    showErr('err-qq', '二维码获取失败：' + err.message);
+    qqStopPoll();
+  });
+}
+function qqStartPoll(){
+  qqStopPoll();
+  qq.timer = setInterval(qqCheckOnce, 3000);   /* 契约建议 2~3s，取 3s */
+  qqCheckOnce();
+}
+function qqCheckOnce(){
+  ncSend('QQLogin/CheckLoginStatus', {}, { timeoutMs: 10000 }).then(function(d){
+    d = d || {};
+    var chip = el('qq-state-chip');
+    if(d.isLogin){
+      qqStopPoll();
+      qq.online = true;
+      chip.textContent = '在线';
+      el('qq-main').hidden = true;
+      el('qq-online').hidden = false;
+      clearErr('err-qq');
+      qqLoadQuick();
+      return;
+    }
+    chip.textContent = d.isOffline ? '已掉线' : '等待扫码';
+    if(d.loginError){
+      var msgText = String(d.loginError);
+      if(/过期|失效/.test(msgText)){
+        /* 二维码过期自动刷新：上游随错误带回新链接（qrcodeurl）时直接重画，
+         * 复制链接同步更新；与当前链接相同则不重画（防死循环） */
+        var fresh = d.qrcodeurl ? String(d.qrcodeurl) : '';
+        if(fresh && fresh !== qq.qrcode){
+          qq.qrcode = fresh;
+          drawQr(fresh);
+          el('qr-link').textContent = fresh;
+          clearErr('err-qq');
+          toast('二维码已过期，已自动刷新');
+          return;
+        }
+        msgText += '——请点击「刷新二维码」';
+      }
+      showErr('err-qq', msgText);
+    }else{
+      clearErr('err-qq');
+    }
+  }).catch(function(err){
+    /* 单次查询失败不停轮询，下次成功即恢复 */
+    showErr('err-qq', '登录状态查询失败：' + err.message);
+  });
+}
+function qqLoadQuick(){
+  ncSend('QQLogin/GetQuickLoginList', {}, { timeoutMs: 10000 }).then(function(d){
+    var arr = Array.isArray(d) ? d : [];
+    var ul = el('quick-list');
+    ul.textContent = '';
+    arr.forEach(function(uin){
+      var li = document.createElement('li');
+      var span = document.createElement('span');
+      span.className = 'quick-uin';
+      span.textContent = String(uin);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.textContent = '快捷登录';
+      btn.addEventListener('click', function(){ qqQuickLogin(String(uin)); });
+      li.appendChild(span);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+    el('quick-empty').hidden = arr.length > 0;
+    clearErr('err-quick');
+  }).catch(function(err){
+    el('quick-list').textContent = '';
+    el('quick-empty').hidden = true;
+    showErr('err-quick', '快捷登录列表获取失败：' + err.message);
+  });
+}
+function qqQuickLogin(uin){
+  ncSend('QQLogin/SetQuickLogin', { uin: uin }, { timeoutMs: 10000 }).then(function(){
+    toast('已发起快捷登录：' + uin);
+    if(!qq.timer) qqStartPoll();
+  }).catch(function(err){
+    toast('快捷登录失败：' + err.message, true);
+  });
+}
+el('btn-refresh-qr').addEventListener('click', function(){
+  clearErr('err-qq');
+  qqLoadQrcode();
+});
+el('btn-copy-qr').addEventListener('click', function(){
+  var text = qq.qrcode;
+  if(!text){ toast('还没有二维码链接', true); return; }
+  function legacyCopy(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var okFlag = false;
+    try{ okFlag = document.execCommand('copy'); }catch(e){ okFlag = false; }
+    document.body.removeChild(ta);
+    toast(okFlag ? '链接已复制' : '复制失败，请手动选择链接复制', !okFlag);
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('链接已复制'); }, legacyCopy);
+  }else{
+    legacyCopy();
+  }
+});
+
+/* ===================================================================
+ * AI 引擎页（第一轮修缮：vl.toml chat/embedding 配置 + 本地/云端大脑切换）
+ * 契约（console/config_page.py + control.py）：
+ * - GET /api/config/chat|embedding → {ok, config:{...}, api_key 只回 {"len":N}}；
+ * - PUT 同路径，字段缺省=保持现值（api_key 留空即不改），响应 need_restart=true
+ *   ——配置是启动时快照，重启 vl 进程后生效；
+ * - 大脑切换 POST /api/control/action {action:'brain_local'|'brain_cloud'}：
+ *   后端调 scripts/brain_switch.py（首次 GGUF 转换可达 15 分钟），完成时自动
+ *   重启 vl（本连接可能随之中断）；
+ * - 引擎健康：/api/status 的 brain 行（后端本地探 /v1/models / 云端探可达性）。
+ * =================================================================== */
+var LOCAL_MODEL_ALIAS = 'qwen2.5-7b-instruct';
+
+function brainModeOf(cfg){
+  var base = String((cfg && cfg.api_base) || '').trim();
+  var model = String((cfg && cfg.model) || '').trim();
+  var m = base.match(/^(?:https?:\/\/)?(127\.0\.0\.1|localhost|\[::1\])(?::|$)/i);
+  if(m || model.toLowerCase() === LOCAL_MODEL_ALIAS) return 'local';
+  if(base) return 'cloud';
+  return 'unset';
+}
+function engineEnter(){
+  loadChatConfig();
+  loadEmbeddingConfig();
+  loadBrainHealth();
+  loadBrainDegrade();   /* 智能降级面板（五轮修缮第二轮） */
+}
+/* ---------- 当前大脑徽章 + 健康 chip（/api/config/chat + /api/status brain 行） ---------- */
+function renderBrainBadge(cfg){
+  var badge = el('brain-badge');
+  var mode = brainModeOf(cfg);
+  var chips = el('brain-chips');
+  /* 探活 chip（loadBrainHealth 异步追加）先摘下再重建，防两请求竞态把它抹掉 */
+  var probeChip = el('brain-probe-chip');
+  if(probeChip) probeChip.remove();
+  chips.textContent = '';
+  var modeChip = document.createElement('span');
+  if(mode === 'local'){
+    badge.textContent = '本地大脑';
+    modeChip.className = 'chip on';
+    modeChip.textContent = '本地大脑';
+  }else if(mode === 'cloud'){
+    badge.textContent = '云端 · ' + String((cfg && cfg.model) || '?');
+    modeChip.className = 'chip intensity';
+    modeChip.textContent = '云端大脑';
+  }else{
+    badge.textContent = '未配置';
+    modeChip.className = 'chip off';
+    modeChip.textContent = '未配置';
+  }
+  chips.appendChild(modeChip);
+  if(cfg && cfg.api_key && cfg.api_key.len > 0){
+    var keyChip = document.createElement('span');
+    keyChip.className = 'chip';
+    keyChip.textContent = 'Key 已配置（长度 ' + cfg.api_key.len + '）';
+    chips.appendChild(keyChip);
+  }
+  if(probeChip) chips.appendChild(probeChip);   /* 竞态保护：探活 chip 放回末尾 */
+}
+function loadBrainHealth(){
+  /* brain 行来自 /api/status（后端本地探 /v1/models，云端探可达性）；
+   * 旧后端无此行时如实显示「状态未知」，绝不假装健康 */
+  return request(EP_STATUS, { timeoutMs: 30000 }).then(function(data){
+    var row = null;
+    var svcs = (data && Array.isArray(data.services)) ? data.services : [];
+    svcs.forEach(function(s){ if(s && s.key === 'brain') row = s; });
+    var chips = el('brain-chips');
+    var old = el('brain-probe-chip');
+    if(old) old.remove();
+    var chip = document.createElement('span');
+    chip.id = 'brain-probe-chip';
+    if(!row){
+      chip.className = 'chip off';
+      chip.textContent = '探活状态未知（后端未提供 brain 行）';
+    }else if(row.ok && row.degraded){
+      /* R2 真探活：可达但最近调用失败（如 403 欠费）→ 黄灯如实说 */
+      chip.className = 'chip warn';
+      chip.textContent = '探活可达，但' + String(row.note || '最近调用失败');
+      chip.title = '探活只证端口可达；最近一次真实对话调用失败了。可用「测她一句话」复核。';
+    }else if(row.ok){
+      chip.className = 'chip on';
+      chip.textContent = '引擎探活正常' + (row.ms > 0 ? ' · ' + row.ms + ' ms' : '');
+    }else{
+      chip.className = 'chip bad';
+      chip.textContent = '引擎探活失败（未响应/不可达）';
+    }
+    chips.appendChild(chip);
+  }).catch(function(){ /* 健康只是增强，徽章与表单不受影响 */ });
+}
+/* ---------- 智能降级面板（五轮修缮第二轮）：/api/brain/status ----------
+ * 黏性模式亮横幅「云端故障已切本地，恢复后可切回」；显示兜底计数与
+ * 最近 LLM 错误（含 HTTP code）——403 哑火不再只有全绿可达性一假话。 */
+function _fmtErrLine(err){
+  if(!err) return '';
+  var t = err.at ? new Date(err.at * 1000).toLocaleTimeString() : '';
+  return 'HTTP ' + (err.status === null || err.status === undefined ? '-' : err.status)
+    + '（' + (err.kind || '?') + '）' + (err.message || '') + (t ? ' · ' + t : '');
+}
+function loadBrainDegrade(){
+  return request(EP_BRAIN_STATUS, { timeoutMs: 8000 }).then(function(d){
+    d = d || {};
+    var wrap = el('brain-degrade');
+    var banner = el('brain-degrade-banner');
+    var detail = el('brain-degrade-detail');
+    if(!wrap || !d.enabled){ if(wrap) wrap.hidden = true; return; }
+    wrap.hidden = false;
+    var sticky = d.mode === 'sticky_local';
+    if(sticky){
+      banner.style.display = 'block';
+      banner.textContent = d.cloud_recovered
+        ? '☁️➡️💻 云端故障已切本地大脑保命中（半开探针显示云端已恢复）——确认计费可用后可点「切回云端大脑」'
+        : '💻 云端故障已切本地大脑保命中——恢复后可切回（每 30 分钟自动探一次云端，不自动切回）';
+    }else{
+      banner.style.display = 'none';
+    }
+    var lines = [];
+    lines.push('本地兜底 ' + (d.fallback_count || 0) + ' 次 · 黏性切换 '
+      + (d.sticky_switches || 0) + ' 次 · 鉴权连败 ' + (d.consec_auth_fails || 0) + ' 轮');
+    var cloudErr = _fmtErrLine(d.last_error);
+    if(cloudErr) lines.push('最近云端错误：' + cloudErr);
+    var localErr = _fmtErrLine(d.last_local_error);
+    if(localErr) lines.push('最近本地错误：' + localErr);
+    if(d.local && d.local.state){
+      lines.push('本地大脑：' + d.local.host + ':' + d.local.port
+        + ' · ' + d.local.state + (d.local.ownership ? '（' + d.local.ownership + '）' : '')
+        + (d.local.pid ? ' · pid ' + d.local.pid : ''));
+    }
+    detail.textContent = lines.join('　|　');
+  }).catch(function(){ /* 降级面板只是增强，失败不动其余展示 */ });
+}
+function loadChatConfig(){
+  return request(EP_CONFIG_CHAT, { timeoutMs: 15000 }).then(function(d){
+    var cfg = (d && d.config) || {};
+    renderBrainBadge(cfg);
+    el('chat-base').value = String(cfg.api_base || '');
+    el('chat-model').value = String(cfg.model || '');
+    el('chat-key').value = '';
+    el('chat-key-note').textContent = (cfg.api_key && cfg.api_key.len > 0)
+      ? ('已配置 Key（长度 ' + cfg.api_key.len + '）；出于安全考虑不回显，留空保持不变。')
+      : '尚未配置 Key；保存时输入一次，绝不回显。';
+    el('chat-thinking').value = (cfg.thinking === 'enabled' || cfg.thinking === 'auto')
+      ? cfg.thinking : 'disabled';
+    el('chat-bg-thinking').value = (cfg.bg_thinking === 'disabled' || cfg.bg_thinking === 'auto')
+      ? cfg.bg_thinking : 'enabled';
+    clearErr('err-chat-form');
+    clearErr('err-brain');
+  }).catch(function(err){
+    showErr('err-brain', 'chat 配置获取失败：' + err.message);
+  });
+}
+/* ---------- 配置 PUT 公共流程（保存 → toast 后端 note → 重载） ---------- */
+function putConfig(url, body, btnId, errId, reload){
+  var btn = el(btnId);
+  btn.disabled = true;
+  clearErr(errId);
+  request(url, { method: 'PUT', body: body, timeoutMs: 20000 }).then(function(d){
+    d = d || {};
+    toast(d.note || '已保存');
+    /* 保存成功后显示持久重启横幅 */
+    showRestartBanner();
+    if(reload) reload();
+  }).catch(function(err){
+    showErr(errId, '保存失败：' + err.message);
+  }).then(function(){ btn.disabled = false; });
+}
+/* 配置保存后的持久重启横幅（不再让用户去找 bat 文件） */
+function showRestartBanner(){
+  var existing = el('restart-banner');
+  if(existing) return;  /* 已显示 */
+  var banner = document.createElement('div');
+  banner.id = 'restart-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:#fff3cd;color:#856404;padding:10px 20px;display:flex;align-items:center;gap:14px;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.1)';
+  var span = document.createElement('span');
+  span.textContent = '⚙ 配置已保存，重启后生效';
+  span.style.flex = '1';
+  var restartBtn = document.createElement('button');
+  restartBtn.textContent = '立即重启';
+  restartBtn.style.cssText = 'padding:6px 16px;border:none;border-radius:8px;background:#c2648b;color:#fff;font-size:13px;cursor:pointer;font-weight:600';
+  restartBtn.onclick = function(){
+    restartBtn.disabled = true;
+    restartBtn.textContent = '重启中…';
+    toast('vl 正在重启（约 10s），页面稍后自动恢复');
+    request('/api/control/action', { method: 'POST', body: { action: 'vl_restart' }, timeoutMs: 60000 })
+      .then(function(){ setTimeout(function(){ location.reload(); }, 8000); })
+      .catch(function(){ setTimeout(function(){ location.reload(); }, 8000); });
+  };
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'background:none;border:none;color:#856404;cursor:pointer;font-size:16px';
+  closeBtn.onclick = function(){ banner.remove(); };
+  banner.appendChild(span);
+  banner.appendChild(restartBtn);
+  banner.appendChild(closeBtn);
+  document.body.appendChild(banner);
+}
+function keyOrOmit(inputId){
+  var v = el(inputId).value.trim();
+  return v ? v : undefined;   /* 留空/全空白 = 字段缺省 = 保持现值（后端契约） */
+}
+el('chat-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var base = el('chat-base').value.trim();
+  var model = el('chat-model').value.trim();
+  if(!base){ showErr('err-chat-form', 'API Base 不能为空'); return; }
+  if(!model){ showErr('err-chat-form', '模型名不能为空'); return; }
+  var body = {
+    api_base: base,
+    model: model,
+    thinking: el('chat-thinking').value,
+    bg_thinking: el('chat-bg-thinking').value
+  };
+  var key = keyOrOmit('chat-key');
+  if(key !== undefined) body.api_key = key;
+  putConfig(EP_CONFIG_CHAT, body, 'btn-chat-save', 'err-chat-form', loadChatConfig);
+});
+el('btn-engine-reload').addEventListener('click', engineEnter);   /* R9：一卡一刷新（chat+embedding+大脑健康全量重载） */
+
+/* ---------- embedding 表单 ---------- */
+function loadEmbeddingConfig(){
+  return request(EP_CONFIG_EMBEDDING, { timeoutMs: 15000 }).then(function(d){
+    var cfg = (d && d.config) || {};
+    el('emb-base').value = String(cfg.api_base || '');
+    el('emb-model').value = String(cfg.model || '');
+    el('emb-style').value = (cfg.style === 'openai') ? 'openai' : 'multimodal_single';   // 旧配置值已由后端内部映射
+    el('emb-dim').value = String(cfg.dim > 0 ? cfg.dim : 2048);
+    el('emb-key').value = '';
+    el('emb-key-note').textContent = (cfg.api_key && cfg.api_key.len > 0)
+      ? ('已配置 Key（长度 ' + cfg.api_key.len + '）；出于安全考虑不回显，留空保持不变。')
+      : '尚未配置 Key；保存时输入一次，绝不回显。';
+    clearErr('err-emb-form');
+  }).catch(function(err){
+    showErr('err-emb-form', 'embedding 配置获取失败：' + err.message);
+  });
+}
+el('emb-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var base = el('emb-base').value.trim();
+  var model = el('emb-model').value.trim();
+  var dim = parseInt(el('emb-dim').value, 10);
+  if(!base){ showErr('err-emb-form', 'API Base 不能为空'); return; }
+  if(!model){ showErr('err-emb-form', '模型名不能为空'); return; }
+  if(!isFinite(dim) || dim < 1 || dim > 65536){
+    showErr('err-emb-form', 'dim 必须是 1~65536 的整数'); return;
+  }
+  var body = {
+    api_base: base,
+    model: model,
+    style: el('emb-style').value,
+    dim: dim
+  };
+  var key = keyOrOmit('emb-key');
+  if(key !== undefined) body.api_key = key;
+  putConfig(EP_CONFIG_EMBEDDING, body, 'btn-emb-save', 'err-emb-form', loadEmbeddingConfig);
+});
+/* ---------- 本地/云端大脑切换（brain_switch 子进程，完成后 vl 自动重启） ---------- */
+function doBrainSwitch(action, title, text, label){
+  showConfirm(title, text, function(){
+    var term = el('ctrl-term');
+    term.textContent = '[' + nowHMS() + '] 正在执行：' + label +
+      ' …（首次切本地需 GGUF 转换，可能 10-15 分钟；完成时 vl 会自动重启，本页连接可能中断）';
+    request(EP_CONTROL, { method: 'POST', body: { action: action }, timeoutMs: 920000 })
+      .then(function(d){
+        d = d || {};
+        var lines = ['[' + nowHMS() + '] ' + label + ' ' + (d.ok ? '完成' : '失败')];
+        if(d.output) lines.push(String(d.output));
+        if(d.note) lines.push(String(d.note));
+        term.textContent = lines.join('\n');
+        if(d.ok) toast(label + '完成；vl 已自动重启');
+        else showErr('err-brain', d.output || (label + '失败，详见终端输出。'));
+      })
+      .catch(function(err){
+        /* brain_switch 成功路径会重启 vl，本 HTTP 连接可能被掐断——如实提示 */
+        term.textContent = '[' + nowHMS() + '] ' + label + ' 连接中断：' + err.message +
+          '\n（vl 可能在重启中，稍后刷新页面确认结果）';
+        showErr('err-brain', '连接中断（vl 可能在重启中）：' + err.message + '——稍后刷新页面确认。');
+      })
+      .then(function(){
+        loadChatConfig();
+        loadBrainHealth();
+      });
+  });
+}
+el('btn-brain-local').addEventListener('click', function(){
+  doBrainSwitch('brain_local', '确认切换到本地大脑？',
+    '将调用 brain_switch 启动本地 llama-server（127.0.0.1:8002）并把 vl.toml [chat] 切到本地'
+    + '（云端原配置自动备份 vl.toml.cloud-backup）。完成后 vl 自动重启；首次切换需 GGUF 转换，可能 10-15 分钟。',
+    '切换本地大脑');
+});
+el('btn-brain-cloud').addEventListener('click', function(){
+  doBrainSwitch('brain_cloud', '确认切回云端大脑？',
+    '将恢复 vl.toml 云端配置（vl.toml.cloud-backup）并停止本地 llama-server，完成后 vl 自动重启。'
+    + '需要云端账户可用。',
+    '切回云端大脑');
+});
+
+/* ---------- 只停本地引擎（R9：brain_stop——只停 8002 服务进程，
+ * 不改 vl.toml、不重启 vl；撤掉三个大脑双击脚本后的等价控制台入口） ---------- */
+el('btn-brain-stop').addEventListener('click', function(){
+  showConfirm('确认只停本地引擎？',
+    '将只停止本地 llama-server（127.0.0.1:8002）服务进程：vl.toml 不改动、vl 不重启。'
+    + '若她当前的大脑配置正指向本地，她会暂时失声——重新切到本地或切回云端即恢复；语音引擎不受影响。',
+    function(){
+      var term = el('ctrl-term');
+      term.textContent = '[' + nowHMS() + '] 正在执行：只停本地引擎 …';
+      request(EP_CONTROL, { method: 'POST', body: { action: 'brain_stop' }, timeoutMs: 120000 })
+        .then(function(d){
+          d = d || {};
+          var lines = ['[' + nowHMS() + '] 只停本地引擎 ' + (d.ok ? '完成' : '失败')];
+          if(d.output) lines.push(String(d.output));
+          if(d.note) lines.push(String(d.note));
+          term.textContent = lines.join('\n');
+          if(d.ok) toast('本地引擎已停止（vl.toml 未改动）');
+          else showErr('err-brain', d.output || '只停本地引擎失败，详见终端输出。');
+        })
+        .catch(function(err){
+          term.textContent = '[' + nowHMS() + '] 只停本地引擎 执行失败：' + err.message;
+          showErr('err-brain', '请求失败：' + err.message);
+        })
+        .then(function(){
+          loadChatConfig();
+          loadBrainHealth();
+        });
+    });
+});
+
+/* ---------- 测她一句话（R2）：真 1-token 对话——可达≠能说话 ----------
+ * 探活全绿但她哑火（如云端欠费 403）时，只有真对话试得出来；成败都如实
+ * 展示耗时与回复/失败原因。 */
+el('btn-brain-ping').addEventListener('click', function(){
+  var btn = el('btn-brain-ping');
+  var out = el('ping-result');
+  btn.disabled = true;
+  out.hidden = false;
+  out.textContent = '[' + nowHMS() + '] 正在跟她说一句话…（真实 1-token 对话）';
+  request(EP_BRAIN_PING, { method: 'POST', body: {}, timeoutMs: 45000 })
+    .then(function(d){
+      d = d || {};
+      if(d.ok){
+        out.textContent = '[' + nowHMS() + '] 她回应了（' + Number(d.ms || 0) + ' ms，'
+          + (d.provider_id ? 'provider=' + d.provider_id + '，' : '')
+          + '回复：' + (d.reply || '（空）') + '）——大脑链路真实可用。';
+      }else{
+        out.textContent = '[' + nowHMS() + '] 她没说上话：' + String(d.error || '未知原因')
+          + '（可达性探活可能仍是绿的——这就是「可达但说不出话」）';
+      }
+    })
+    .catch(function(err){
+      out.textContent = '[' + nowHMS() + '] 探针请求失败：' + err.message;
+    })
+    .then(function(){
+      btn.disabled = false;
+      loadBrainHealth();   /* 顺带刷新探活 chip（探针成败会同步 last_error） */
+    });
+});
+
+/* ===================================================================
+ * 灵魂人格卡（R9 起住在「引擎与人格」页；单人格即 vl.toml [persona]）
+ * 契约（console/config_page.py）：GET/PUT /api/config/persona，
+ * config:{name, system_prompt, begin_dialogs:[...]}；begin_dialogs 必须偶数条
+ * （一问一答成对，后端 400 兜底）；PUT 后需重启 vl 生效。
+ * =================================================================== */
+function loadPersona(){
+  return request(EP_CONFIG_PERSONA, { timeoutMs: 15000 }).then(function(d){
+    var cfg = (d && d.config) || {};
+    el('ps-name').value = String(cfg.name || '');
+    el('ps-prompt').value = String(cfg.system_prompt || '');
+    renderBdList(Array.isArray(cfg.begin_dialogs) ? cfg.begin_dialogs : []);
+    clearErr('err-persona-form');
+  }).catch(function(err){
+    showErr('err-persona-form', '人格配置获取失败：' + err.message);
+  });
+}
+function bdRow(text){
+  var row = document.createElement('div');
+  row.className = 'bd-row';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'line-input';
+  input.value = String(text || '');
+  input.placeholder = '一句开场白';
+  var del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'btn btn-ghost btn-sm';
+  del.textContent = '删除';
+  del.addEventListener('click', function(){ row.remove(); });
+  row.appendChild(input);
+  row.appendChild(del);
+  return row;
+}
+function renderBdList(arr){
+  var box = el('bd-list');
+  box.textContent = '';
+  arr.forEach(function(text){ box.appendChild(bdRow(text)); });
+}
+el('btn-bd-add').addEventListener('click', function(){
+  el('bd-list').appendChild(bdRow(''));
+});
+el('btn-persona-reload').addEventListener('click', loadPersona);
+el('persona-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  clearErr('err-persona-form');
+  var name = el('ps-name').value.trim();
+  var prompt = el('ps-prompt').value;
+  if(!name){ showErr('err-persona-form', '名字 name 不能为空'); return; }
+  if(!prompt.trim()){ showErr('err-persona-form', '人格全文 system_prompt 不能为空'); return; }
+  var dialogs = [];
+  document.querySelectorAll('#bd-list input').forEach(function(input){
+    var v = input.value.trim();
+    if(v) dialogs.push(v);
+  });
+  if(dialogs.length % 2 !== 0){
+    showErr('err-persona-form', '开场白必须是偶数条（一问一答成对），当前 ' + dialogs.length + ' 条');
+    return;
+  }
+  putConfig(EP_CONFIG_PERSONA,
+    { name: name, system_prompt: prompt, begin_dialogs: dialogs },
+    'btn-persona-save', 'err-persona-form', loadPersona);
+});
+
+/* ===================================================================
+ * 她的记忆（第一轮修缮：GET /api/memory/list?q=）
+ * 契约（console/control.py memory_search_payload）：q 必填非空（400），
+ * 语义检索当前会话记忆，返回 {ok, items:[{time, content}], count}，≤20 条；
+ * 记忆库未装配/封锁/嵌入失败一律 503 如实报错。只读面，绝不写入。
+ * =================================================================== */
+var memoryBooted = false;
+function memoryEnter(){
+  if(memoryBooted) return;
+  memoryBooted = true;
+  el('memory-empty').hidden = false;
+  el('memory-empty').textContent = '输入关键词搜索她记住的事（语义检索，最多返回 20 条）。';
+}
+function fmtMemTime(ts){
+  var t = Number(ts);
+  if(!isFinite(t) || t <= 0) return '未知时间';
+  var d = new Date(t * 1000);
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate())
+    + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+function renderMemory(data){
+  var ul = el('memory-list');
+  ul.textContent = '';
+  var items = (data && Array.isArray(data.items)) ? data.items : [];
+  el('memory-count').textContent =
+    (data && typeof data.count === 'number') ? ('命中 ' + data.count + ' 条') : '';
+  if(!items.length){
+    el('memory-empty').hidden = false;
+    el('memory-empty').textContent = '没有查到相关记忆，换个说法再试试。';
+    return;
+  }
+  el('memory-empty').hidden = true;
+  items.forEach(function(it){
+    var li = document.createElement('li');
+    li.className = 'mem-item';
+    var time = document.createElement('div');
+    time.className = 'mem-time';
+    time.textContent = fmtMemTime(it.time);
+    var text = document.createElement('p');
+    text.className = 'mem-text';
+    text.textContent = String(it.content || '');
+    li.appendChild(time);
+    li.appendChild(text);
+    ul.appendChild(li);
+  });
+}
+function loadMemory(q){
+  return request(EP_MEMORY_LIST + '?q=' + encodeURIComponent(q), { timeoutMs: 30000 })
+    .then(renderMemory)
+    .catch(function(err){
+      el('memory-list').textContent = '';
+      el('memory-count').textContent = '';
+      showErr('err-memory', '记忆检索失败：' + err.message);
+    });
+}
+el('memory-search-form').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  clearErr('err-memory');
+  var q = el('memory-q').value.trim();
+  if(!q){
+    showErr('err-memory', '请输入搜索关键词（后端契约 q 必填非空）');
+    return;
+  }
+  el('memory-list').textContent = '';
+  el('memory-empty').hidden = true;
+  var li = document.createElement('li');
+  li.className = 'mem-item';
+  li.textContent = '检索中…';
+  el('memory-list').appendChild(li);
+  loadMemory(q);
+});
+
+/* ===================================================================
+ * 对话回放（R9）：GET /api/history/list?date=YYYY-MM-DD&page=1
+ * 契约（console/control.py history_day_payload）：只读分页，
+ * {ok, items:[{time, role, role_zh, content}], total, page, page_size, pages}；
+ * 三重门随 /api/* 继承（未登录 401）。历史库/会话未装配 → 503 如实降级。
+ * =================================================================== */
+var HISTORY_PAGE_SIZE = 200;      /* 与后端契约一致（≤200 条/页） */
+var historyState = { date: '', page: 1, pages: 1 };
+var historyBooted = false;
+
+function historyEnter(){
+  if(historyBooted) return;
+  historyBooted = true;
+  /* 默认日期=今天（本地时区）；进页面即回放今天的第 1 页 */
+  var d = new Date();
+  el('history-date').value = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  loadHistoryDay(1);
+}
+
+function renderHistory(data){
+  clearErr('err-history');
+  var ul = el('history-timeline');
+  ul.textContent = '';
+  var items = (data && Array.isArray(data.items)) ? data.items : [];
+  historyState.page = (data && Number(data.page)) || 1;
+  historyState.pages = Math.max(1, (data && Number(data.pages)) || 1);
+  var total = (data && Number(data.total)) || 0;
+  el('history-replay-meta').textContent = items.length
+    ? ('共 ' + total + ' 条 · 第 ' + historyState.page + '/' + historyState.pages + ' 页')
+    : '';
+  el('history-pager').hidden = historyState.pages <= 1;
+  el('history-page-indicator').textContent = historyState.page + ' / ' + historyState.pages;
+  el('history-empty').hidden = items.length > 0;
+  if(!items.length){
+    el('history-empty').textContent = total > 0
+      ? '这一页没有内容（翻页试试）。'
+      : '这天没有聊天记录——去和她说句话吧。';
+    ul.hidden = true;
+    return;
+  }
+  ul.hidden = false;
+  items.forEach(function(it){
+    var li = document.createElement('li');
+    var role = String(it.role || 'system');
+    li.className = 'tl-item role-' + role;
+    var head = document.createElement('div');
+    head.className = 'tl-head';
+    var time = document.createElement('span');
+    time.className = 'evt-time';
+    time.textContent = fmtMemTime(it.time);
+    var roleTag = document.createElement('span');
+    roleTag.className = 'tl-role';
+    roleTag.textContent = String(it.role_zh || role);
+    head.appendChild(time);
+    head.appendChild(roleTag);
+    var text = document.createElement('p');
+    text.className = 'tl-text';
+    text.textContent = String(it.content || '');
+    li.appendChild(head);
+    li.appendChild(text);
+    ul.appendChild(li);
+  });
+}
+
+function loadHistoryDay(page){
+  var date = String(el('history-date').value || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+    showErr('err-history', '请先选一个日期（YYYY-MM-DD）');
+    return;
+  }
+  historyState.date = date;
+  var ul = el('history-timeline');
+  ul.hidden = false;
+  ul.textContent = '';
+  var li = document.createElement('li');
+  li.className = 'tl-item';
+  li.textContent = '加载中…';
+  ul.appendChild(li);
+  request(EP_HISTORY_LIST + '?date=' + encodeURIComponent(date)
+          + '&page=' + encodeURIComponent(String(page || 1)),
+          { timeoutMs: 15000 })
+    .then(renderHistory)
+    .catch(function(err){
+      ul.hidden = true;
+      el('history-pager').hidden = true;
+      el('history-replay-meta').textContent = '';
+      showErr('err-history', '对话回放加载失败：' + err.message);
+    });
+}
+el('btn-history-load').addEventListener('click', function(){ loadHistoryDay(1); });
+el('btn-history-prev').addEventListener('click', function(){
+  if(historyState.page > 1) loadHistoryDay(historyState.page - 1);
+});
+el('btn-history-next').addEventListener('click', function(){
+  if(historyState.page < historyState.pages) loadHistoryDay(historyState.page + 1);
+});
+
+/* ===================================================================
+ * 我们的回忆页：GET /api/memories（只读聚合，三重门随 /api/* 继承）。
+ * 契约（console/core.py memories_payload）：
+ * {ok, anchor:{date,days,ts}|null, timeline:[{key,label,date,ts}],
+ *  total_messages:int|null, first_voice:{date,text,ts}|null,
+ *  diary_dates:[YYYY-MM-DD…]}（缺文件/缺数据的槽位一律 null/空数组）。
+ * =================================================================== */
+function memoriesEnter(){
+  request(EP_MEMORIES, { timeoutMs: 10000 })
+    .then(renderMemories)
+    .catch(function(err){
+      showErr('err-memories', '回忆加载失败：' + err.message);
+    });
+}
+
+function renderMemories(data){
+  clearErr('err-memories');
+  data = data || {};
+  /* 顶行四格：锚点 / 消息总数 / 首次语音 / 日记足迹（缺数据显示 —） */
+  var anchor = (data.anchor && typeof data.anchor === 'object') ? data.anchor : null;
+  el('memories-anchor').textContent = anchor ? String(anchor.date || '—') : '—';
+  el('memories-days').textContent = anchor && Number(anchor.days) > 0
+    ? ('已经认识 ' + Number(anchor.days) + ' 天') : '';
+  el('memories-total').textContent =
+    (typeof data.total_messages === 'number' && data.total_messages >= 0)
+      ? (data.total_messages + ' 条') : '—';
+  var voice = (data.first_voice && typeof data.first_voice === 'object') ? data.first_voice : null;
+  el('memories-first-voice').textContent = voice ? String(voice.date || '—') : '（还没有语音）';
+  el('memories-first-voice').title = (voice && voice.text) ? ('她说的第一句话：' + voice.text) : '';
+  var dates = Array.isArray(data.diary_dates) ? data.diary_dates : [];
+  el('memories-diary-count').textContent = dates.length ? (dates.length + ' 天') : '—';
+
+  /* 里程碑时间线（后端已按时间升序）：复用对话回放的 timeline 样式 */
+  var ul = el('memories-timeline');
+  ul.textContent = '';
+  var items = Array.isArray(data.timeline) ? data.timeline : [];
+  el('memories-empty').hidden = items.length > 0;
+  ul.hidden = items.length === 0;
+  items.forEach(function(it){
+    var li = document.createElement('li');
+    li.className = 'tl-item';
+    var head = document.createElement('div');
+    head.className = 'tl-head';
+    var time = document.createElement('span');
+    time.className = 'evt-time';
+    time.textContent = String(it.date || '某一天');
+    var tag = document.createElement('span');
+    tag.className = 'tl-role';
+    tag.textContent = String(it.label || it.key || '');
+    head.appendChild(time);
+    head.appendChild(tag);
+    li.appendChild(head);
+    ul.appendChild(li);
+  });
+
+  /* 日记足迹（倒序日期 chips，风格同总览 chips） */
+  var chips = el('memories-diary-chips');
+  chips.textContent = '';
+  el('memories-diary-empty').hidden = dates.length > 0;
+  dates.forEach(function(d){
+    var chip = document.createElement('span');
+    chip.className = 'chip mood-lonely';
+    chip.textContent = String(d);
+    chips.appendChild(chip);
+  });
+}
+
+/* ===================================================================
+ * 服务管理页
+ * =================================================================== */
+var ACTION_LABEL = {
+  start: '启动容器', stop: '停止容器', restart: '重启容器',
+  status: '查询容器状态', backup: '立即备份',
+  napcat_switch: '重指协议端→新栈', napcat_rollback: '回滚协议端指向'
+};
+/* 需要二次确认的动作 → [标题, 说明]（文案如实：compose 动作只作用于 docker
+ * 容器（协议端容器 vl-heart 等），vl 本体与本控制台不受影响；全家启停用一键启停.bat） */
+var ACTION_CONFIRMS = {
+  stop: ['确认停止容器？',
+         '将停止 compose 里的容器（协议端容器等）——她会立刻离线，直到重新启动。'
+         + 'vl 框架本体与本控制台不受影响；全家（含 vl 本体）启停请用「一键停止.bat」。'],
+  restart: ['确认重启容器？',
+            '将重启 compose 里的容器（协议端容器等），期间她会短暂离线，通常需要数十秒。'
+            + 'vl 框架本体与本控制台不受影响；全家（含 vl 本体）启停请用「一键启动.bat」。'],
+  napcat_switch: ['确认重指协议端到新栈？',
+                  '将改写协议端容器的 onebot11_*.json 指向新栈桥并更换桥 token（原文件备份 *.bak-<时间戳>），'
+                  + '同步 vl.toml 并定点重启协议端容器。vl 框架进程需另行重启后生效。'],
+  napcat_rollback: ['确认回滚协议端指向？',
+                    '将把协议端容器的 onebot11_*.json 从最近 *.bak-<时间戳> 恢复（指回旧栈）并定点重启协议端容器。']
+};
+document.querySelectorAll('[data-action]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var action = btn.getAttribute('data-action');
+    var confirmSpec = ACTION_CONFIRMS[action];
+    if(confirmSpec){
+      showConfirm(confirmSpec[0], confirmSpec[1], function(){ doAction(action); });
+      return;
+    }
+    doAction(action);
+  });
+});
+function doAction(action){
+  var term = el('ctrl-term');
+  var label = ACTION_LABEL[action] || action;
+  clearErr('err-control');
+  el('backup-line').hidden = true;
+  term.textContent = '[' + nowHMS() + '] 正在执行：' + label + ' …（请耐心等待，勿关闭页面）';
+  request(EP_CONTROL, { method: 'POST', body: { action: action }, timeoutMs: 120000 })
+    .then(function(d){
+      d = d || {};
+      var lines = ['[' + nowHMS() + '] ' + label + ' ' + (d.ok ? '完成' : '失败')];
+      if(d.path){
+        lines.push('备份文件：' + d.path + (d.size != null ? '（' + fmtSize(d.size) + '）' : ''));
+      }
+      if(d.output) lines.push(String(d.output));
+      else if(d.message) lines.push(String(d.message));
+      term.textContent = lines.join('\n');
+      if(d.path){
+        var bl = el('backup-line');
+        bl.textContent = '✓ 备份成功，文件位于：' + d.path + (d.size != null ? '（' + fmtSize(d.size) + '）' : '');
+        bl.hidden = false;
+      }
+      if(!d.ok) showErr('err-control', d.message || (label + '执行失败，详见终端输出。'));
+    })
+    .catch(function(err){
+      term.textContent = '[' + nowHMS() + '] ' + label + ' 执行失败：' + err.message;
+      showErr('err-control', label + '请求失败：' + err.message);
+    });
+}
+
+/* ===================================================================
+ * 语音页（VOICE_SPEC §3）
+ * 数据源：/api/voice/*（状态卡以 voice_manager 的 lifecycle 为准，
+ * 不用 /api/status 的裸 HTTP 探针——冷启动 15s 内 HTTP 必误报）。
+ * 试听：POST /api/voice/preview 返回 base64 JSON → Blob → <audio> 播放。
+ * =================================================================== */
+var voiceState = {
+  status: null,          /* 最近一次 /api/voice/status 响应 */
+  mapData: null,         /* 最近一次 /api/voice/emotion-map 响应 */
+  registered: [],        /* 当前音色的注册情绪（下拉只列这些值） */
+  emotionsKnown: false,  /* 注册表是否已知（引擎未就绪时下拉降级） */
+  lastUrl: null          /* 已播放的 ObjectURL（换曲前释放） */
+};
+var VOICE_LIFECYCLE_CHIP = {
+  ready: 'chip on', starting: 'chip warn', restarting: 'chip warn',
+  not_started: 'chip off', suspected_down: 'chip bad', degraded: 'chip bad',
+  unknown: 'chip off'
+};
+var VOICE_OWNERSHIP_CHIP = { owned: 'chip on', adopted: 'chip warn',
+  external: 'chip warn', none: 'chip off' };
+
+/* ============ GPU 资源管理（服务管理页） ============ */
+function loadGpuStatus(){
+  /* 本地大脑：/api/status brain 行 + /api/config/chat 路径检测 */
+  Promise.all([
+    request(EP_STATUS, { timeoutMs: 30000 }),
+    request('/api/config/chat', { timeoutMs: 10000 }).catch(function(){ return {config:{}}; })
+  ]).then(function(results){
+    var d = results[0], cfg = results[1].config || {};
+    var brain = (d.services || []).find(function(s){ return s.key === 'brain'; });
+    var chip = el('gpu-brain-chip');
+    var gguf = (cfg.fallback_gguf || '').trim();
+    var exe = (cfg.fallback_llama_exe || '').trim();
+    var configured = gguf && exe;
+    el('gpu-brain-controls').hidden = !configured;
+    el('gpu-brain-unconfigured').hidden = configured;
+    if(!configured){
+      chip.textContent = '未配置（云端模式）';
+      chip.style.background = '#f0f0f4';
+      return;
+    }
+    if(brain && brain.ok){
+      chip.textContent = '运行中 (' + (brain.ms || '?') + 'ms)';
+      chip.style.background = '#e0f5e9';
+    } else {
+      chip.textContent = brain ? '已停止' : '未知';
+      chip.style.background = '#f0f0f4';
+    }
+  }).catch(function(){ el('gpu-brain-chip').textContent = '检测失败'; });
+
+  /* 语音引擎：/api/voice/status lifecycle + gsvi_root 检测 */
+  Promise.all([
+    request('/api/voice/status', { timeoutMs: 10000 }),
+    request('/api/config/tts', { timeoutMs: 10000 }).catch(function(){ return {config:{}}; })
+  ]).then(function(results){
+    var d = results[0], ttsCfg = results[1].config || {};
+    var chip = el('gpu-voice-chip');
+    var gsviRoot = (ttsCfg.gsvi_root || '').trim();
+    if(!gsviRoot){
+      chip.textContent = '未配置';
+      chip.style.background = '#f0f0f4';
+      el('gpu-voice-auto').closest('p').style.display = 'none';
+      return;
+    }
+    var lc = d.status ? d.status.lifecycle : '';
+    if(lc === 'ready'){
+      chip.textContent = '运行中';
+      chip.style.background = '#e0f5e9';
+    } else {
+      chip.textContent = lc ? ('已停止 (' + lc + ')') : '未运行';
+      chip.style.background = '#f0f0f4';
+    }
+    /* auto_start 开关 */
+    var cb = el('gpu-voice-auto');
+    cb.checked = (d.status && d.status.auto_start === true);
+    cb.onchange = function(){
+      request('/api/config/tts', {
+        method: 'PUT',
+        body: { auto_start: cb.checked }
+      }).then(function(){
+        var s = el('gpu-voice-auto-saved');
+        s.hidden = false;
+        setTimeout(function(){ s.hidden = true; }, 2000);
+      }).catch(function(err){
+        showErr('err-paths', 'auto_start 保存失败：' + err.message);
+        cb.checked = !cb.checked;
+      });
+    };
+  }).catch(function(){ el('gpu-voice-chip').textContent = '检测失败'; });
+}
+
+/* 语音启停按钮（GPU 卡） */
+el('gpu-voice-start') && el('gpu-voice-start').addEventListener('click', function(){
+  var b = this; b.disabled = true; b.textContent = '启动中…';
+  request('/api/voice/start', { method: 'POST', body: {}, timeoutMs: 300000 })
+    .then(function(){ toast('语音引擎启动指令已发出'); })
+    .catch(function(e){ toast('启动失败：' + e.message); })
+    .then(function(){ b.disabled = false; b.textContent = '启动引擎'; loadGpuStatus(); });
+});
+el('gpu-voice-stop') && el('gpu-voice-stop').addEventListener('click', function(){
+  var b = this; b.disabled = true;
+  request('/api/voice/stop', { method: 'POST', body: {}, timeoutMs: 30000 })
+    .then(function(d){ toast(d.note || '已停止'); })
+    .catch(function(e){ toast('停止失败：' + e.message); })
+    .then(function(){ b.disabled = false; loadGpuStatus(); });
+});
+
+/* ============ 路径设置（服务管理页） ============ */
+function loadPaths(){
+  request('/api/config/chat', { timeoutMs: 10000 }).then(function(d){
+    if(d.config){
+      el('path-gguf').value = d.config.fallback_gguf || '';
+      el('path-llama').value = d.config.fallback_llama_exe || '';
+    }
+  }).catch(function(){});
+  request('/api/config/tts', { timeoutMs: 10000 }).then(function(d){
+    if(d.config){
+      el('path-gsvi').value = d.config.gsvi_root || '';
+      el('path-voice-url').value = d.config.base_url || '';
+    }
+  }).catch(function(){});
+}
+el('btn-paths-save') && el('btn-paths-save').addEventListener('click', function(){
+  var btn = this; btn.disabled = true; btn.textContent = '保存中…';
+  clearErr('err-paths');
+  var chatBody = {};
+  if(el('path-gguf').value.trim()) chatBody.fallback_gguf = el('path-gguf').value.trim();
+  if(el('path-llama').value.trim()) chatBody.fallback_llama_exe = el('path-llama').value.trim();
+  var ttsBody = {};
+  if(el('path-gsvi').value.trim()) ttsBody.gsvi_root = el('path-gsvi').value.trim();
+  if(el('path-voice-url').value.trim()) ttsBody.base_url = el('path-voice-url').value.trim();
+  var reqs = [];
+  if(Object.keys(chatBody).length) reqs.push(request('/api/config/chat', { method: 'PUT', body: chatBody }));
+  if(Object.keys(ttsBody).length) reqs.push(request('/api/config/tts', { method: 'PUT', body: ttsBody }));
+  if(!reqs.length){ toast('无改动'); btn.disabled = false; btn.textContent = '保存'; return; }
+  Promise.all(reqs)
+    .then(function(){ toast('路径已保存——重启 vl 后生效（一键停止→一键启动）'); })
+    .catch(function(e){ showErr('err-paths', '保存失败：' + e.message); })
+    .then(function(){ btn.disabled = false; btn.textContent = '保存'; });
+});
+
+function voiceEnter(){
+  loadVoiceStatus();
+  loadVoiceMap();
+}
+
+/* ---------- 状态卡 ---------- */
+function fmtDuration(sec){
+  var s = Math.floor(Number(sec) || 0);
+  if(s < 60) return s + ' 秒';
+  if(s < 3600) return Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒';
+  return Math.floor(s / 3600) + ' 小时 ' + Math.floor((s % 3600) / 60) + ' 分';
+}
+function loadVoiceStatus(){
+  return request(EP_VOICE_STATUS, { timeoutMs: 15000 }).then(function(d){
+    voiceState.status = d || {};
+    voiceState.registered = (d && Array.isArray(d.registered_emotions))
+      ? d.registered_emotions.map(String) : [];
+    voiceState.emotionsKnown = !!(d && d.emotions_known);
+    renderVoiceStatus(voiceState.status);
+    refreshVoiceEmotionOptions();
+    clearErr('err-voice-status');
+  }).catch(function(err){
+    showErr('err-voice-status', '语音状态获取失败：' + err.message);
+  });
+}
+function renderVoiceStatus(d){
+  /* lifecycle 芯片（状态卡第一数据源） */
+  var chips = el('voice-state-chips');
+  chips.textContent = '';
+  var lifeChip = document.createElement('span');
+  lifeChip.className = VOICE_LIFECYCLE_CHIP[d.lifecycle] || 'chip off';
+  lifeChip.textContent = String(d.lifecycle_zh || d.lifecycle || '未知');
+  chips.appendChild(lifeChip);
+  if(d.enabled === false){
+    var offChip = document.createElement('span');
+    offChip.className = 'chip off';
+    offChip.textContent = 'tts.enabled=false';
+    chips.appendChild(offChip);
+  }
+  if(d.assembled === false){
+    var asmChip = document.createElement('span');
+    asmChip.className = 'chip warn';
+    asmChip.textContent = '语音框架未装配';
+    chips.appendChild(asmChip);
+  }
+  var t = new Date();
+  el('voice-status-time').textContent =
+    pad2(t.getHours()) + ':' + pad2(t.getMinutes()) + ':' + pad2(t.getSeconds()) + ' 探测';
+
+  el('voice-character').textContent = String(d.character || '（未配置）');
+  /* R3-2e：语音触发概率滑杆（真实生效的旋钮；状态值只在用户没在拖动时回填） */
+  if(d.trigger_probability != null && !triggerDragging){
+    var pct = Math.round(Number(d.trigger_probability) * 100);
+    el('voice-trigger-prob').value = String(pct);
+    el('voice-trigger-prob-val').textContent = pct + '%';
+  }
+  var ownChip = document.createElement('span');
+  ownChip.className = VOICE_OWNERSHIP_CHIP[d.ownership] || 'chip off';
+  ownChip.style.borderBottom = 'none';
+  ownChip.textContent = String(d.ownership_zh || d.ownership || '--');
+  var ownSlot = el('voice-ownership');
+  ownSlot.textContent = '';
+  ownSlot.appendChild(ownChip);
+  el('voice-pid').textContent = (d.pid != null && d.pid > 0) ? String(d.pid) : '—';
+  el('voice-uptime').textContent = (d.uptime_s != null) ? fmtDuration(d.uptime_s) : '—';
+  var cache = d.cache || {};
+  el('voice-cache').textContent = (cache.count != null)
+    ? (cache.count + ' 条 · ' + fmtSize(cache.bytes || 0)
+       + (cache.max_entries ? '（上限 ' + cache.max_entries + ' 条 / ' + fmtSize(cache.max_bytes || 0) + '）' : ''))
+    : '—';
+  el('voice-baseurl').textContent = String(d.base_url || '—');
+
+  /* 注册情绪 chips（同时是各下拉的取值来源） */
+  var emoChips = el('voice-emo-chips');
+  emoChips.textContent = '';
+  var hint = el('voice-emo-hint');
+  if(voiceState.emotionsKnown && voiceState.registered.length){
+    hint.textContent = '当前音色的注册情绪（' + voiceState.registered.length + ' 个）：';
+    voiceState.registered.forEach(function(emo){
+      var chip = document.createElement('span');
+      chip.className = 'chip intensity';
+      chip.textContent = emo;
+      emoChips.appendChild(chip);
+    });
+  }else{
+    hint.textContent = '引擎注册情绪未知（引擎未就绪或未拉取注册表缓存）；'
+      + '下拉暂以映射表当前值列出。';
+  }
+
+  /* 横幅 1：base_url 非本机（host.docker.internal 残留必炸） */
+  var urlBanner = el('voice-banner-url');
+  if(d.base_url_local === false && d.base_url){
+    el('voice-banner-url-text').textContent =
+      '语音引擎 base_url 指向非本机地址：' + d.base_url
+      + '。语音引擎无鉴权且 host.docker.internal 残留必炸（容器外不可达），建议修正为 http://127.0.0.1:5000。';
+    urlBanner.hidden = false;
+  }else{
+    urlBanner.hidden = true;
+  }
+  /* 横幅 2：单情绪音色明示 */
+  var singleBanner = el('voice-banner-single');
+  if(d.single_emotion === true){
+    el('voice-banner-single-text').textContent =
+      '当前音色「' + String(d.character || '?') + '」只有 1 个注册情绪：7 态情绪联动将不会'
+      + '生效，所有映射都唱同一个调。如需情绪联动，请换多情绪音色（默认 Huohua）。';
+    singleBanner.hidden = false;
+  }else{
+    singleBanner.hidden = true;
+  }
+
+  /* 启停卡 */
+  renderVoicePower(d);
+}
+function renderVoicePower(d){
+  var powerChips = el('voice-power-chips');
+  powerChips.textContent = '';
+  var autoChip = document.createElement('span');
+  autoChip.className = (d.auto_start === true) ? 'chip on' : 'chip off';
+  autoChip.textContent = (d.auto_start === true) ? 'auto_start 常驻拉起'
+    : (d.auto_start === false ? 'auto_start 已关' : 'auto_start 未知');
+  powerChips.appendChild(autoChip);
+  /* v2：停止按钮对所有归属可用（external 走命令行核验杀，与 service.py stop 等价） */
+  el('voice-btn-stop').disabled = false;
+  el('voice-btn-start').disabled = (d.assembled === false);
+  var hint = el('voice-power-hint');
+  if(d.ownership === 'adopted' || d.ownership === 'external'){
+    hint.textContent = '引擎正在运行。点「停止引擎」将按命令行核验安全停止（30 秒后框架会自动重拉，如需彻底关闭请在 vl.toml 设 auto_start=false）。';
+  }else if(d.ownership === 'owned'){
+    hint.textContent = '框架自有进程：停止前会由语音管理器做 PID + 命令行核验，绝不误杀。';
+  }else{
+    hint.textContent = '引擎当前无自有进程；点「启动引擎」由 auto_start 框架拉起。';
+  }
+  el('voice-log-path').textContent = String(d.log_path || '--');
+  var tail = el('voice-log-tail');
+  var lines = Array.isArray(d.log_tail) ? d.log_tail : [];
+  tail.textContent = lines.length ? lines.join('\n') : '（暂无日志或文件不存在）';
+  if(d.last_error){
+    showErr('err-voice-power', '最近错误行：' + d.last_error);
+  }else{
+    clearErr('err-voice-power');
+  }
+}
+el('btn-voice-reload').addEventListener('click', loadVoiceStatus);
+
+/* ---------- 语音触发概率旋钮（R3-2e：运行时热改 + vl.toml 持久化） ---------- */
+var triggerDragging = false;
+el('voice-trigger-prob').addEventListener('input', function(){
+  el('voice-trigger-prob-val').textContent = el('voice-trigger-prob').value + '%';
+});
+el('voice-trigger-prob').addEventListener('change', function(){
+  triggerDragging = false;
+});
+el('voice-trigger-prob').addEventListener('pointerdown', function(){
+  triggerDragging = true;
+});
+el('voice-trigger-prob-save').addEventListener('click', function(){
+  var btn = this;
+  var pct = Number(el('voice-trigger-prob').value);
+  btn.disabled = true;
+  clearErr('err-voice-trigger');
+  request(EP_VOICE_TRIGGER, { method: 'PUT', timeoutMs: 20000,
+    body: { value: pct / 100 } }).then(function(d){
+    d = d || {};
+    var applied = d.runtime_applied !== false;
+    var saved = d.persisted === true;
+    toast('语音触发概率已设为 ' + Math.round((d.value != null ? d.value : pct / 100) * 100)
+      + '%（' + (applied ? '运行时已生效' : '语音框架未装配，仅保存')
+      + (saved ? '，vl.toml 已持久化）' : '，vl.toml 未写入）'));
+    clearErr('err-voice-trigger');
+  }).catch(function(err){
+    showErr('err-voice-trigger', '设置失败：' + err.message);
+  }).then(function(){ btn.disabled = false; });
+});
+
+/* ---------- 情绪下拉（只列注册值；default 剔除——它不是可试听的情绪语义） ---------- */
+function fillVoiceSelect(sel, current){
+  sel.textContent = '';
+  var opts = [];
+  if(voiceState.emotionsKnown && voiceState.registered.length){
+    opts = voiceState.registered.slice();
+  }else if(current){
+    opts = [String(current)];
+  }
+  /* R3-2g：default 是语音引擎的「无情绪」兜底值，不是音色注册的情绪语义——
+     试听它只会误导（唱的是模型默认调），从下拉剔除；注册表未知时同理。 */
+  opts = opts.filter(function(emo){ return emo !== 'default'; });
+  if(!opts.length){
+    var empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = '（无可试听情绪：引擎未就绪或音色只注册了 default）';
+    empty.disabled = true;
+    sel.appendChild(empty);
+    sel.classList.add('unlinked');
+    return false;
+  }
+  opts.forEach(function(emo){
+    var opt = document.createElement('option');
+    opt.value = emo;
+    opt.textContent = emo;
+    sel.appendChild(opt);
+  });
+  if(current && opts.indexOf(String(current)) >= 0) sel.value = String(current);
+  var unlinked = voiceState.emotionsKnown && current
+    && opts.indexOf(String(current)) < 0;
+  /* 当前值不在注册表：把当前值补进选项并标黄（映射表行用） */
+  if(unlinked){
+    var extra = document.createElement('option');
+    extra.value = String(current);
+    extra.textContent = String(current) + '（未注册）';
+    sel.appendChild(extra);
+    sel.value = String(current);
+  }
+  sel.classList.toggle('unlinked', !!unlinked);
+  return unlinked;
+}
+function refreshVoiceEmotionOptions(){
+  var sel = el('voice-preview-emotion');
+  var current = sel.value || (voiceState.status
+    && voiceState.status.emotion_map && voiceState.status.emotion_map.fallback) || '';
+  fillVoiceSelect(sel, current);
+}
+
+/* ---------- 试听卡 ---------- */
+el('voice-preview-text').addEventListener('input', function(){
+  el('voice-preview-count').textContent = String(el('voice-preview-text').value.length);
+});
+function previewTextOrSample(){
+  var text = el('voice-preview-text').value.trim();
+  if(!text){
+    text = '哥哥，今天也要元气满满哦。';
+    el('voice-preview-text').value = text;
+    el('voice-preview-count').textContent = String(text.length);
+  }
+  return text;
+}
+function playBase64Wav(b64){
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  var blob = new Blob([bytes], { type: 'audio/wav' });
+  var audio = el('voice-audio');
+  if(voiceState.lastUrl){ URL.revokeObjectURL(voiceState.lastUrl); voiceState.lastUrl = null; }
+  voiceState.lastUrl = URL.createObjectURL(blob);
+  audio.src = voiceState.lastUrl;
+  audio.hidden = false;
+  var played = audio.play();
+  if(played && played.catch) played.catch(function(){ /* 自动播放被拦时用户手动点播放 */ });
+}
+function doVoicePreview(emotion, btn, lineId){
+  emotion = String(emotion || '').trim();
+  if(!emotion){
+    /* R3-2g：下拉无可选情绪（default 已剔除）时不盲发——合成侧会把空值兜成
+       default 演唱，那正是我们要在 UI 上拦住的误导性试听。 */
+    showErr('err-voice-preview', '当前无可试听情绪（引擎未就绪或音色只注册了 default），请先启动引擎。');
+    return;
+  }
+  var text = previewTextOrSample();
+  btn.disabled = true;
+  var line = el(lineId);
+  line.hidden = true;
+  clearErr('err-voice-preview');
+  line.className = 'preview-line';
+  line.textContent = '合成中…（首次合成可能需要数十秒，请勿重复点击）';
+  line.hidden = false;
+  request(EP_VOICE_PREVIEW, {
+    method: 'POST',
+    body: { text: text, emotion: emotion },
+    timeoutMs: 200000
+  }).then(function(d){
+    playBase64Wav(String(d.audio_base64 || ''));
+    line.textContent = '✓ 合成成功：' + fmtSize(d.bytes || 0)
+      + ' · ' + (d.elapsed_ms || 0) + ' ms · 情绪「' + String(d.emotion || '') + '」'
+      + '（若浏览器拦截自动播放，请点播放键）';
+  }).catch(function(err){
+    line.hidden = true;
+    showErr('err-voice-preview', '试听失败：' + err.message);
+  }).then(function(){
+    btn.disabled = false;
+  });
+}
+el('voice-preview-btn').addEventListener('click', function(){
+  doVoicePreview(el('voice-preview-emotion').value, this, 'voice-preview-line');
+});
+
+/* ---------- 映射表卡 ---------- */
+function loadVoiceMap(){
+  return request(EP_VOICE_MAP, { timeoutMs: 15000 }).then(function(d){
+    voiceState.mapData = d || {};
+    renderVoiceMap(voiceState.mapData);
+    clearErr('err-voice-map');
+  }).catch(function(err){
+    showErr('err-voice-map', '映射表获取失败：' + err.message);
+  });
+}
+function renderVoiceMap(d){
+  var box = el('voice-map-rows');
+  box.textContent = '';
+  var keys = Array.isArray(d.mood_keys) ? d.mood_keys : [];
+  var map = d.map || {};
+  var zh = d.mood_zh || {};
+  keys.forEach(function(key){
+    var row = document.createElement('div');
+    row.className = 'emo-row';
+    var label = document.createElement('span');
+    label.className = 'emo-label';
+    label.textContent = String(zh[key] || key);
+    row.appendChild(label);
+    var keyTip = document.createElement('span');
+    keyTip.className = 'emo-key';
+    keyTip.textContent = key;
+    row.appendChild(keyTip);
+    var sel = document.createElement('select');
+    sel.className = 'vsel';
+    sel.id = 'voice-map-' + key;
+    sel.dataset.mood = key;
+    var unlinked = fillVoiceSelect(sel, map[key]);
+    row.appendChild(sel);
+    var warn = document.createElement('span');
+    warn.className = 'emo-warn';
+    if(unlinked) warn.textContent = '⚠ 未注册：联动不会生效';
+    row.appendChild(warn);
+    var tryBtn = document.createElement('button');
+    tryBtn.type = 'button';
+    tryBtn.className = 'btn btn-ghost btn-sm';
+    tryBtn.textContent = '行内试听';
+    tryBtn.addEventListener('click', function(){
+      doVoicePreview(sel.value, tryBtn, 'voice-preview-line');
+      toast('用试听卡文本合成情绪「' + sel.value + '」');
+    });
+    row.appendChild(tryBtn);
+    box.appendChild(row);
+  });
+}
+el('btn-voice-map-reload').addEventListener('click', loadVoiceMap);
+el('voice-map-save').addEventListener('click', function(){
+  var btn = this;
+  var map = {};
+  document.querySelectorAll('#voice-map-rows select').forEach(function(sel){
+    map[sel.dataset.mood] = sel.value;
+  });
+  btn.disabled = true;
+  request(EP_VOICE_MAP, { method: 'PUT', body: { map: map }, timeoutMs: 15000 })
+    .then(function(d){
+      toast('映射表已保存' + (d && d.reloaded ? '并热加载' : '') + '（原文件已备份）');
+      loadVoiceMap();
+      loadVoiceStatus();
+    })
+    .catch(function(err){
+      showErr('err-voice-map', '映射表保存失败：' + err.message);
+    })
+    .then(function(){ btn.disabled = false; });
+});
+el('voice-map-reset').addEventListener('click', function(){
+  var d = voiceState.mapData;
+  if(!d || !d.defaults){ toast('映射表尚未加载', true); return; }
+  document.querySelectorAll('#voice-map-rows select').forEach(function(sel){
+    var def = d.defaults[sel.dataset.mood];
+    if(def !== undefined) sel.value = String(def);
+  });
+  toast('已填入默认值，点「保存映射表」生效');
+});
+
+/* ---------- 启停卡动作 ---------- */
+el('voice-btn-start').addEventListener('click', function(){
+  var btn = this;
+  btn.disabled = true;
+  clearErr('err-voice-power');
+  request(EP_VOICE_START, { method: 'POST', body: {}, timeoutMs: 30000 })
+    .then(function(d){
+      toast((d && d.note) || '已请求启动');
+      loadVoiceStatus();
+    })
+    .catch(function(err){
+      showErr('err-voice-power', '启动请求失败：' + err.message);
+    })
+    .then(function(){
+      /* 冷启就绪预算 300s：按状态卡刷新结果决定按钮是否恢复 */
+      btn.disabled = (voiceState.status && voiceState.status.assembled === false);
+    });
+});
+el('voice-btn-stop').addEventListener('click', function(){
+  showConfirm('确认停止语音引擎？',
+    '停止后她将只剩文字回复，直到重新启动。仅框架自有进程可停（收编/外部进程绝不误杀）。',
+    function(){
+      request(EP_VOICE_STOP, { method: 'POST', body: {}, timeoutMs: 30000 })
+        .then(function(d){
+          toast((d && d.note) || '已请求停止');
+          loadVoiceStatus();
+        })
+        .catch(function(err){
+          showErr('err-voice-power', '停止请求失败：' + err.message);
+        });
+    });
+});
+
+/* ---------- 横幅：base_url 一键修正 ---------- */
+el('voice-fix-url').addEventListener('click', function(){
+  showConfirm('一键修正 base_url？',
+    '将把 vl.toml 的 tts.base_url 改写为 http://127.0.0.1:5000（原文件自动备份 *.bak）。'
+    + '若引擎进程在运行，重启语音引擎后生效。',
+    function(){
+      request(EP_VOICE_FIX_URL, { method: 'POST', body: {}, timeoutMs: 30000 })
+        .then(function(){
+          toast('base_url 已修正');
+          loadVoiceStatus();
+        })
+        .catch(function(err){
+          toast('修正失败：' + err.message, true);
+        });
+    });
+});
+
+/* ---------- 确认弹层 ---------- */
+var confirmCb = null;
+function showConfirm(title, text, cb){
+  el('confirm-title').textContent = title;
+  el('confirm-text').textContent = text;
+  confirmCb = cb;
+  el('confirm-mask').hidden = false;
+  el('confirm-cancel').focus();
+}
+function hideConfirm(){
+  el('confirm-mask').hidden = true;
+  confirmCb = null;
+}
+el('confirm-cancel').addEventListener('click', hideConfirm);
+el('confirm-mask').addEventListener('click', function(ev){
+  if(ev.target === el('confirm-mask')) hideConfirm();
+});
+el('confirm-ok').addEventListener('click', function(){
+  var cb = confirmCb;
+  hideConfirm();
+  if(cb) cb();
+});
+document.addEventListener('keydown', function(ev){
+  if(ev.key === 'Escape'){
+    if(!el('confirm-mask').hidden) hideConfirm();
+  }
+});
+
+/* ---------- 轻提示 ---------- */
+var toastTimer = null;
+function toast(msg, isErr){
+  var t = el('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' toast-err' : '');
+  t.hidden = false;
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.hidden = true; }, 2800);
+}
+
+/* ===================================================================
+ * 启动：先探测会话，再决定进登录页还是主界面
+ * =================================================================== */
+request(EP_AUTH_WHOAMI, { skipAuthRedirect: true, timeoutMs: 5000 })
+  .then(function(d){
+    if(d && (d.ok === true || d.status === 'ok')) enterApp();
+    else showLoginView();
+  })
+  .catch(function(){ showLoginView(); });
+</script>
+</body>
+</html>

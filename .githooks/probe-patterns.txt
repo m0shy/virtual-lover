@@ -1,0 +1,17 @@
+# 上游探针句词表（SPEC §12 门禁 3）—— tracked 机制文档，真实特征串不在这里
+#
+# 合规要点：上游（mnemosyne 等 AGPL 插件）的 prompt 原文一旦写入 git 跟踪文件，
+# 本仓库即构成对上游文案的复制分发，违反我们自己的 clean-room 规约（SPEC §14）。
+# 因此真实特征串只存本机 gitignored 的 local/agpl-probes.txt，本文件仅作机制说明
+# 与兜底（pre-commit 优先读 local/agpl-probes.txt，不存在时才读本文件）。
+#
+# 用途：防止上游 prompt 原文被抄入 virtuallover/。SPEC §7.2 要求记忆总结 prompt
+# 「自行撰写同等意图的中文指令，禁抄 mnemosyne 原文，探针 grep 把关」。
+#
+# 维护规约：
+#   1) 真实特征串请写入 local/agpl-probes.txt（每行一条固定字符串，grep -F 精确
+#      匹配，# 注释，UTF-8，LF）；只允许能合法接触上游原文的角色（主控/许可证
+#      参谋）维护，clean-room 实现者禁止为取词阅读上游源码；
+#   2) 如确需在本 tracked 文件放特征串，只能放非上游文案的自有检查项（如本项目
+#      禁用词），且必须不含 AGPL 上游原文；
+#   3) 两者皆无可用条目时，pre-commit 会打印「未生效」警告。
