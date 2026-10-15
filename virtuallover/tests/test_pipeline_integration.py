@@ -35,6 +35,8 @@ from virtuallover.tests._o34_contract import (
     wait_until,
 )
 
+import pytest
+
 USER_A = "10001"       # 占位白名单用户（禁真实 QQ 号）
 GROUP_ID = "7770001"   # 占位群号
 
