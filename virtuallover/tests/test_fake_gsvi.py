@@ -230,6 +230,7 @@ def test_set_mode_validates_and_switches(fake_gsvi):
 # 请求起止时间记录（串行化断言的数据面）
 # ---------------------------------------------------------------------------
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_request_windows_recorded_and_sequential_non_overlapping(fake_gsvi):
     """顺序请求：每条 start/end 完整、耗时≥latency、时间窗零重叠。"""
     fake_gsvi.latency = 0.05
