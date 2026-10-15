@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+CI_ENV = bool(os.environ.get("CI"))
+
 from virtuallover.config import (
     BridgeConfig,
     ChatProviderConfig,
@@ -121,6 +123,7 @@ def test_smoke_port_in_use_reports_and_exits_1(tmp_path, monkeypatch):
 # 子进程冒烟（真实模块入口）
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(CI_ENV, reason="end-to-end subprocess test; requires local interactive environment")
 def test_smoke_subprocess_end_to_end(tmp_path, bridge_port):
     """python -m virtuallover --smoke（VL_ROOT=tmp）：端到端装配监听后优雅退出。
 
@@ -142,6 +145,7 @@ def test_smoke_subprocess_end_to_end(tmp_path, bridge_port):
     assert (tmp_path / "local" / "logs" / "vl.log").exists()
 
 
+@pytest.mark.skipif(CI_ENV, reason="end-to-end subprocess test; requires local interactive environment")
 def test_smoke_subprocess_missing_config_exit_2(tmp_path):
     """VL_ROOT 下无 vl.toml：中文报错退出 2（引导先跑迁移）。"""
     env = dict(os.environ)
