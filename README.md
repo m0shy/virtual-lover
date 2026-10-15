@@ -1,7 +1,7 @@
 # Virtual-lover
 
 [![CI](https://github.com/m0shy/virtual-lover/actions/workflows/ci.yml/badge.svg)](https://github.com/m0shy/virtual-lover/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md)
