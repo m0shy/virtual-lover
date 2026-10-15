@@ -12,6 +12,11 @@ from __future__ import annotations
 
 import os
 import subprocess
+import os
+import pytest
+
+CI_ENV = bool(os.environ.get("CI"))
+
 import sys
 from pathlib import Path
 
@@ -98,6 +103,7 @@ def test_run_init_refuses_overwrite(tmp_path, capsys):
 @pytest.mark.filterwarnings(
     "ignore:coroutine 'Server._close' was never awaited"
 )  # websockets 绑定失败路径的内部清理协程由 GC 兜底，良性
+@pytest.mark.skipif(CI_ENV, reason="end-to-end init test; requires local interactive environment")
 def test_init_then_smoke_ready_end_to_end(tmp_path):
     """O12 验收：全新 VL_ROOT 空目录 --init-config 后 --smoke 退出码 0。
 
