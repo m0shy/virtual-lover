@@ -518,7 +518,10 @@ def test_backup_exclude_list_synced_with_backup_bat():
     """两处备份清单同步契约：backup.bat 的 vl_data 行必须 /XD voice_cache，
     且 control.py 的排除清单含 vl_data/voice_cache（防单边漂移）。"""
     bat_path = REPO_ROOT / "scripts" / "backup.bat"
-    bat_text = bat_path.read_bytes().decode("gbk")  # bat 全 GBK
+    try:
+        bat_text = bat_path.read_bytes().decode("utf-8")  # bat 已统一 UTF-8
+    except UnicodeDecodeError:
+        bat_text = bat_path.read_bytes().decode("gbk")  # 旧检出（GBK）兼容
     vl_data_lines = [ln for ln in bat_text.splitlines()
                      if ln.strip().startswith("robocopy local" + chr(92) + "vl_data")]
     assert len(vl_data_lines) == 1, "backup.bat 应恰有一条 vl_data 备份行"
