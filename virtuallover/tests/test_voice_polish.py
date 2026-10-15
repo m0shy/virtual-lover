@@ -344,6 +344,7 @@ class TestEmotionMapR3:
         for mood, emotion in DEFAULT_EMOTION_MAP.items():
             assert emotion in registry, f"{mood}→{emotion} 未注册"
 
+    @pytest.mark.skipif(not (REPO_ROOT / "local" / "config" / "vl.toml").exists(), reason="live local config not present in clean clone")
     def test_vl_toml_layer_synced(self):
         """vl.toml 的 emotion_map 与代码默认表一致（控制台映射卡=默认表←vl.toml←覆盖层）。"""
         from virtuallover.console import voice as console_voice
