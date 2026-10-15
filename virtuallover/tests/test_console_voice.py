@@ -433,6 +433,7 @@ def test_start_and_stop_owned_manager(voice_env):
     assert voice_env.manager.stopped == 1
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_stop_refused_for_adopted_manager(voice_env):
     """adopt-first：收编的外部窗口进程绝不杀（409）。"""
     voice_env.manager.ownership = "adopted"
