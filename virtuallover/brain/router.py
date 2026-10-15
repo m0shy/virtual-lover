@@ -640,7 +640,7 @@ class BrainRouter:
         err = self._state.snapshot()["last_error"]
         if not err:
             return ""
-        if time.time() - float(err.get("at") or 0) > window_seconds:
+        if time.time() - float(err.get("at") or 0) >= window_seconds:
             return ""
         message = str(err.get("message") or "")
         if self._state.mode == MODE_STICKY_LOCAL:
