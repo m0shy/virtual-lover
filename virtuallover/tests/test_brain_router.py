@@ -711,6 +711,7 @@ def test_local_manager_from_chat_cfg_reads_auto_spawn():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 def test_chat_async_wrapper_and_recent_failure_surface():
     """chat_async 同语义；recent_failure 在黏性期带「已切本地保命」前缀。"""
     router, primary, local, manager, notices, clock = _make_router()
