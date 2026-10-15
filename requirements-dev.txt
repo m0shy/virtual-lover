@@ -15,3 +15,5 @@ pytest>=8.4,<9.0
 #               worker 间桥端口隔离依赖 PYTEST_XDIST_WORKER 环境变量
 #               （tests/conftest.py vl_test_port per-worker 派生）。
 pytest-xdist>=3.8,<4.0
+# pytest-rerunfailures —— CI 上时序敏感用例的重试（见 CONTRIBUTING 的 flaky 策略）。
+pytest-rerunfailures>=14,<15
